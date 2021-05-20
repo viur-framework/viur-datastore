@@ -1,0 +1,4 @@
+Our code (dbaccelerator.pyx) is released under the lesser GPL v3.
+We included a unmodified copy of simdjson.cpp and simdjson.h from https://github.com/simdjson/simdjson, released under
+Apache License 2.0.
+
