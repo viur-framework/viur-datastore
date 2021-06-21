@@ -155,15 +155,17 @@ cdef inline object toEntityStructure(simdjsonElement v, bool isInitial = False):
 				tmpResult = objIterStart.value().at("key")
 				if tmpResult.error() == SUCCESS:
 					e.key = parseKey(tmpResult.value())
-				innerObject = objIterStart.value().at_key("properties").get_object()
-				objIterStartInner = innerObject.begin()
-				objIterEndInner = innerObject.end()
-				while objIterStartInner != objIterEndInner:
-					e[toPyStr(objIterStartInner.key())] = toEntityStructure(objIterStartInner.value())
-					tmpResult = objIterStartInner.value().at("excludeFromIndexes")
-					if tmpResult.error() == SUCCESS and tmpResult.value().get_bool():
-						excludeList.add(toPyStr(objIterStartInner.key()))
-					preincrement(objIterStartInner)
+				tmpResult = objIterStart.value().at("properties")
+				if tmpResult.error() == SUCCESS:
+					innerObject = tmpResult.value().get_object()
+					objIterStartInner = innerObject.begin()
+					objIterEndInner = innerObject.end()
+					while objIterStartInner != objIterEndInner:
+						e[toPyStr(objIterStartInner.key())] = toEntityStructure(objIterStartInner.value())
+						tmpResult = objIterStartInner.value().at("excludeFromIndexes")
+						if tmpResult.error() == SUCCESS and tmpResult.value().get_bool():
+							excludeList.add(toPyStr(objIterStartInner.key()))
+						preincrement(objIterStartInner)
 				e.exclude_from_indexes = excludeList
 				return e
 			elif (strView.compare("nullValue") == 0):
