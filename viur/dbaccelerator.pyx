@@ -13,6 +13,8 @@ import json
 from datetime import datetime, timezone
 from typing import List
 from base64 import b64decode
+import logging
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 ## Start of C-Imports
 
@@ -299,10 +301,18 @@ def fetchMulti(keys: List[datastore.Key]):
 			},
 			"keys": keyList,
 		}
-		req = _http_internal.post(
-			url="https://datastore.googleapis.com/v1/projects/%s:lookup" % projectID,
-			data=json.dumps(postData).encode("UTF-8"),
-		)
+		for i in range(0, 3):
+			try:
+				req = _http_internal.post(
+					url="https://datastore.googleapis.com/v1/projects/%s:lookup" % projectID,
+					data=json.dumps(postData).encode("UTF-8"),
+				)
+				break
+			except RequestsConnectionError:
+				logging.debug("Retrying http post request to datastore")
+				if i == 2:
+					raise
+				continue
 		assert req.status_code == 200
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
