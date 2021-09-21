@@ -299,7 +299,7 @@ def fetchMulti(keys: List[datastore.Key]):
 			"readOptions": {
 				"readConsistency": "STRONG",
 			},
-			"keys": keyList,
+			"keys": keyList[:300],
 		}
 		for i in range(0, 3):
 			try:
@@ -319,7 +319,7 @@ def fetchMulti(keys: List[datastore.Key]):
 		if (element.at("found").error() == SUCCESS):
 			res.update(toEntityStructure(element.at_key("found"), isInitial=True))
 		if (element.at("deferred").error() == SUCCESS):
-			keyList = toPythonStructure(element.at_key("deferred"))
+			keyList = toPythonStructure(element.at_key("deferred")) + keyList[300:]
 		else:
-			keyList = []
+			keyList = keyList[300:]
 	return [res.get(x) for x in keys]  # Sort by order of incoming keys
