@@ -1,6 +1,7 @@
 # distutils: sources = viur/simdjson.cpp
 # distutils: language = c++
 # cython: language_level=3
+import pprint
 
 from libc.stdint cimport int64_t, uint64_t
 from libcpp cimport bool
@@ -15,6 +16,9 @@ from typing import List
 from base64 import b64decode
 import logging
 from requests.exceptions import ConnectionError as RequestsConnectionError
+from typing import Union, Tuple, List, Dict, Any, Callable, Set, Optional
+from itertools import zip_longest
+from datetime import datetime, date, time
 
 ## Start of C-Imports
 
@@ -93,6 +97,15 @@ cdef extern from "simdjson.h" namespace "simdjson::dom":
 
 ## End of C-Imports
 
+
+class Entity(dict):
+	def __init__(self, key=None, exclude_from_indexes=()):
+		super(Entity, self).__init__()
+		self.key = key
+		self.exclude_from_indexes = exclude_from_indexes
+
+
+
 credentials, projectID = google.auth.default(scopes=["https://www.googleapis.com/auth/datastore"])
 _http_internal = google.auth.transport.requests.AuthorizedSession(
 	credentials,
@@ -152,7 +165,7 @@ cdef inline object toEntityStructure(simdjsonElement v, bool isInitial = False):
 		while objIterStart != objIterEnd:
 			strView = objIterStart.key()
 			if strView.compare("entity") == 0 or strView.compare("entityValue") == 0:
-				e = datastore.Entity()
+				e = Entity()
 				excludeList = set()
 				tmpResult = objIterStart.value().at("key")
 				if tmpResult.error() == SUCCESS:
@@ -323,3 +336,116 @@ def fetchMulti(keys: List[datastore.Key]):
 		else:
 			keyList = keyList[300:]
 	return [res.get(x) for x in keys]  # Sort by order of incoming keys
+
+
+def pythonPropToJson(v):
+	if isinstance(v, int):
+		return {
+			"integerValue": str(v)
+		}
+	elif isinstance(v, float):
+		return {
+			"doubleValue":v
+		}
+	elif v is True or v is False:
+		return {
+			"booleanValue": v
+		}
+	elif isinstance(v, str):
+		return {
+			"stringValue": v
+		}
+	assert False
+
+def runSingleFilter(queryDefinition, limit):
+	cdef simdjsonParser parser = simdjsonParser()
+	cdef Py_ssize_t pysize
+	cdef char * data_ptr
+	cdef simdjsonElement element
+	postData = {
+		"partitionId": {
+			"project_id": projectID,
+		},
+		"readOptions": {
+			"readConsistency": "STRONG",
+		},
+		"query": {
+			"kind": [
+				{
+					"name": queryDefinition.kind,
+				}
+			],
+			"limit": limit
+		},
+	}
+	if queryDefinition.filters:
+		filterList = []
+		for k, v in queryDefinition.filters.items():
+			key, op = k.split(" ")
+			if op == "=":
+				op = "EQUAL"
+			elif op == "<":
+				op = "LESS_THAN"
+			elif op == "<=":
+				op = "LESS_THAN_OR_EQUAL"
+			elif op == ">":
+				op = "GREATER_THAN"
+			elif op == ">=":
+				op = "GREATER_THAN_OR_EQUAL"
+			else:
+				raise ValueError("Invalid op %s" % op)
+			filterList.append({
+				"propertyFilter": {
+					"property": {
+						"name": key,
+					},
+					"op": op,
+					"value": pythonPropToJson(v)
+				}
+			}
+			)
+		if len(filterList) == 1:  # Special, single filter
+			postData["query"]["filter"] = filterList[0]
+		else:
+			postData["query"]["filter"] = {
+				"compositeFilter": {
+					"op": "AND",
+					"filters": filterList
+				}
+			}
+	if queryDefinition.orders:
+		postData["query"]["order"] = [
+			{
+				"property": {"name": sortOrder[0]},
+				"direction": "ASCENDING" if sortOrder[1].value in [1, 4] else "DESCENDING"
+			} for sortOrder in queryDefinition.orders
+		]
+	if queryDefinition.distinct:
+		postData["query"]["distinctOn"] = [
+			{
+				"name": distinctKey
+			} for distinctKey in queryDefinition.distinct
+		]
+	print(postData)
+	req = _http_internal.post(
+		url="https://datastore.googleapis.com/v1/projects/%s:runQuery" % projectID,
+		data=json.dumps(postData).encode("UTF-8"),
+	)
+	if req.status_code != 200:
+		print("INVALID STATUS CODE RECEIVED")
+		print(req.content)
+		pprint.pprint(json.loads(req.content))
+		raise ValueError("Invalid status code received from Datastore API")
+	assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+	element = parser.parse(data_ptr, pysize, 1)
+	if element.at("batch").error() != SUCCESS:
+		print("INVALID RESPONSE RECEIVED")
+		pprint.pprint(json.loads(req.content))
+	#	res.update(toEntityStructure(element.at_key("batch"), isInitial=True))
+	element = element.at_key("batch")
+	if element.at("entityResults").error() == SUCCESS:
+		res = toEntityStructure(element.at_key("entityResults"), isInitial=False)
+	else: # No results received
+		res = []
+	return res
+
