@@ -339,7 +339,11 @@ def fetchMulti(keys: List[datastore.Key]):
 
 
 def pythonPropToJson(v):
-	if isinstance(v, int):
+	if v is True or v is False:
+		return {
+			"booleanValue": v
+		}
+	elif isinstance(v, int):
 		return {
 			"integerValue": str(v)
 		}
@@ -347,13 +351,18 @@ def pythonPropToJson(v):
 		return {
 			"doubleValue":v
 		}
-	elif v is True or v is False:
-		return {
-			"booleanValue": v
-		}
 	elif isinstance(v, str):
 		return {
 			"stringValue": v
+		}
+	elif isinstance(v, datastore.Key):
+		return {
+			"keyValue": {
+				"partitionId": {
+					"project_id": projectID,
+				},
+				"path": keyToPath(v)
+			}
 		}
 	assert False
 
