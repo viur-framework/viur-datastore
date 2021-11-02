@@ -1,26 +1,23 @@
-# distutils: sources = viur/simdjson.cpp
+# distutils: sources = viur/datastore/simdjson.cpp
 # distutils: language = c++
 # cython: language_level=3
-import pprint
+import base64
 
-from libc.stdint cimport int64_t, uint64_t
-from libcpp cimport bool
-from cpython.bytes cimport PyBytes_AsStringAndSize
-from cython.operator cimport preincrement, dereference
 import google.auth
-from google.auth.transport import requests  # noqa  # pylint: disable=unused-import
-from google.cloud import datastore
-import json
+import requests
+from libcpp cimport bool as boolean_type
+from viur.datastore.types import currentTransaction, Entity, Key, QueryDefinition
+from cython.operator cimport preincrement, dereference
+from libc.stdint cimport int64_t, uint64_t
 from datetime import datetime, timezone
-from base64 import b64decode, urlsafe_b64encode, urlsafe_b64decode
-import logging
+from cpython.bytes cimport PyBytes_AsStringAndSize
+import pprint, json
+from base64 import b64decode, b64encode
+from typing import Union, List, Any
 from requests.exceptions import ConnectionError as RequestsConnectionError
-from typing import Union, Tuple, List, Dict, Any, Callable, Set, Optional
-from datetime import datetime
-from contextvars import ContextVar
-from google.cloud.datastore import _app_engine_key_pb2
+import logging
 
-## Start of C-Imports
+## Start of CPP-Imports required for the simdjson->python bridge
 
 cdef extern from "Python.h":
 	object PyUnicode_FromStringAndSize(const char *u, Py_ssize_t size)
@@ -35,7 +32,6 @@ cdef extern from "simdjson.h" namespace "simdjson::error_code":
 	cdef enum simdjsonErrorCode "simdjson::error_code":
 		SUCCESS,
 		NO_SUCH_FIELD
-
 
 cdef extern from "simdjson.h" namespace "simdjson::dom::element_type":
 	cdef enum simdjsonElementType "simdjson::dom::element_type":
@@ -52,7 +48,6 @@ cdef extern from "simdjson.h" namespace "simdjson::simdjson_result":
 	cdef cppclass simdjsonResult "simdjson::simdjson_result<simdjson::dom::element>":
 		simdjsonErrorCode error()
 		simdjsonElement value()
-
 
 cdef extern from "simdjson.h" namespace "simdjson::dom":
 	cdef cppclass simdjsonObject "simdjson::dom::object":
@@ -82,7 +77,7 @@ cdef extern from "simdjson.h" namespace "simdjson::dom":
 	cdef cppclass simdjsonElement "simdjson::dom::element":
 		simdjsonElement()
 		simdjsonElementType type() except +
-		bool get_bool() except +
+		boolean_type get_bool() except +
 		int64_t get_int64() except +
 		uint64_t get_uint64() except +
 		double get_double() except +
@@ -94,82 +89,9 @@ cdef extern from "simdjson.h" namespace "simdjson::dom":
 
 	cdef cppclass simdjsonParser "simdjson::dom::parser":
 		simdjsonParser()
-		simdjsonElement parse(const char * buf, size_t len, bool realloc_if_needed) except +
+		simdjsonElement parse(const char * buf, size_t len, boolean_type realloc_if_needed) except +
 
 ## End of C-Imports
-
-# Pointer to the current transaction this thread may be currently in
-currentTransaction = ContextVar("CurrentTransaction", default=None)
-
-class Entity(dict):
-	def __init__(self, key=None, exclude_from_indexes=()):
-		super(Entity, self).__init__()
-		self.key = key
-		self.exclude_from_indexes = exclude_from_indexes
-		self.version = None
-
-
-class Key:
-	__slots__ = ["id", "name", "kind", "parent"]
-	def __init__(self, kind: str, subKey: Union[int, str] = None, parent: 'Key' = None):
-		super().__init__()
-		self.kind = kind
-		self.id = None
-		self.name = None
-		if isinstance(subKey, int):
-			self.id = subKey
-		elif isinstance(subKey, str):
-			assert not subKey.isdigit(), "Digit-Only string keys are not permitted"
-			self.name = subKey
-		self.parent = parent
-
-	@property
-	def id_or_name(self):
-		return self.id or self.name
-
-	def __repr__(self):
-		return "<viur.dbaccelerator.Key %s/%s, parent=%s>" % (self.kind, self.id_or_name, self.parent)
-
-	def __hash__(self):
-		return hash("%s.%s.%s" % (self.kind, self.id, self.name))
-
-	def __eq__(self, other):
-		return self.kind == other.kind and self.id == other.id and self.name == other.name and self.parent == other.parent
-
-	def to_legacy_urlsafe(self):
-		currentKey = self
-		pathElements = []
-		while currentKey:
-			pathElements.insert(0, _app_engine_key_pb2.Path.Element(
-				type=currentKey.kind,
-				id=currentKey.id,
-				name=currentKey.name,
-			))
-			currentKey = self.parent
-		reference = _app_engine_key_pb2.Reference(
-			app=projectID,
-			path=_app_engine_key_pb2.Path(element=pathElements),
-		)
-		raw_bytes = reference.SerializeToString()
-		return urlsafe_b64encode(raw_bytes).strip(b"=")
-
-	@property
-	def is_partial(self):
-		return self.id_or_name is None
-
-	@classmethod
-	def from_legacy_urlsafe(cls, strKey):
-		urlsafe = strKey.encode("ASCII")
-		padding = b"=" * (-len(urlsafe) % 4)
-		urlsafe += padding
-		raw_bytes = urlsafe_b64decode(urlsafe)
-		reference = _app_engine_key_pb2.Reference()
-		reference.ParseFromString(raw_bytes)
-		resultKey = None
-		for elem in reference.path.element:
-			resultKey = Key(elem.type, elem.id or elem.name, parent=resultKey)
-		return resultKey
-
 
 
 credentials, projectID = google.auth.default(scopes=["https://www.googleapis.com/auth/datastore"])
@@ -178,15 +100,130 @@ _http_internal = google.auth.transport.requests.AuthorizedSession(
 	refresh_timeout=300,
 )
 
+def authenticatedRequest(url:str, data: bytes) -> requests.Response:
+	"""
+		Runs one http request to the datastore rest api, authenticated with the current projects service account.
+		Will retry up to three times in case the connection cannot be established the first time.
+
+		:param url: The url to post the data to
+		:param data:: The data to include in the post request
+		:return: The Response object
+	"""
+	for i in range(0, 3):
+		try:
+			return _http_internal.post(
+				url=url,
+				data=data,
+			)
+		except RequestsConnectionError:
+			logging.debug("Retrying http post request to datastore")
+			if i == 2:
+				raise
+			continue
+
+def keyToPath(key: Key) -> List[dict]:
+	"""
+		Converts a Key object to the PathElements expected by the rest API.
+		See https://cloud.google.com/datastore/docs/reference/data/rest/v1/Key#PathElement
+
+		:param key: The key object to convert
+		:return: The list of path elements corresponding to this key
+	"""
+	res = []
+	while key:
+		res.insert(0,
+				   {
+					   "kind": key.kind,
+					   "id": key.id,
+				   } if key.id else {
+					   "kind": key.kind,
+					   "name": key.name
+				   } if key.name else {
+					   "kind": key.kind,
+				   }
+				   )
+		key = key.parent
+	return res
+
+def pythonPropToJson(v) -> dict:
+	"""
+		Convert a python type to the object representation expected by the datastore rest API.
+		See https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects/runQuery#Value
+
+		:param v: The python object to convert
+		:return: The representation of that object as expected by the rest api.
+	"""
+	if v is True or v is False:
+		return {
+			"booleanValue": v
+		}
+	elif v is None:
+		return {"nullValue": None}
+	elif isinstance(v, int):
+		return {
+			"integerValue": str(v)
+		}
+	elif isinstance(v, float):
+		return {
+			"doubleValue": v
+		}
+	elif isinstance(v, str):
+		return {
+			"stringValue": v
+		}
+	elif isinstance(v, Key):
+		return {
+			"keyValue": {
+				"partitionId": {
+					"project_id": projectID,
+				},
+				"path": keyToPath(v)
+			}
+		}
+	elif isinstance(v, datetime):
+		return {
+			"timestampValue": v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+		}
+	elif isinstance(v, (Entity, dict)):
+		return {
+			"entityValue": {
+				"key": pythonPropToJson(v.key)["keyValue"] if isinstance(v, Entity) and v.key else None,
+				"properties": {
+					dictKey: pythonPropToJson(dictValue) for dictKey, dictValue in v.items()
+				}
+
+			}
+		}
+	elif isinstance(v, list):
+		return {
+			"arrayValue": {
+				"values": [pythonPropToJson(x) for x in v]
+			}
+		}
+	elif isinstance(v, bytes):
+		return {
+			"blobValue": b64encode(v).decode("ASCII")
+		}
+	assert False, "%s (%s) is not supported" % (v, type(v))
+
 cdef inline object toPyStr(stringView strView):
-	# convert cpp stringview to a python str object
+	"""
+		Converts a cpp stringview to a python str object
+		:param strView: The stringview object 
+		:return: The corresponding python string object
+	"""
 	return PyUnicode_FromStringAndSize(
 		strView.data(),
 		strView.length()
 	)
 
 cdef inline object parseKey(simdjsonElement v):
-	# Parses a simdJsonObject to datastore.Key
+	"""
+		Parses a simdJsonObject representing a key to a datastore.Key instance.	
+	
+		:param v: The simdJsonElement containing the key 
+		:return: The corresponding datastore.Key instance
+	"""
 	cdef simdjsonArray arr
 	cdef simdjsonArray.iterator arrayIt, arrayItEnd
 	pathArgs = []
@@ -210,9 +247,13 @@ cdef inline object parseKey(simdjsonElement v):
 		key = Key(*pathElem, parent=key)
 	return key
 
-cdef inline object toEntityStructure(simdjsonElement v, bool isInitial = False):
-	# Like toPythonStructure, but parses directly into db.Entity etc instead of normal python
-	# objects like dicts
+cdef inline object toEntityStructure(simdjsonElement v, boolean_type isInitial = False):
+	"""
+		Parses a simdJsonElement into the corresponding python datatypes.
+		:param v: The simdJsonElement to parse
+		:param isInitial: If true, we'll return a dictionary of key->entity instead of a list of entities
+		:return: The corresponding python datatype.
+	"""
 	cdef simdjsonElementType et = v.type()
 	cdef simdjsonArray.iterator arrayIt, arrayItEnd
 	cdef simdjsonObject.iterator objIterStart, objIterStartInner, objIterEnd, objIterEndInner
@@ -339,281 +380,15 @@ cdef inline object toPythonStructure(simdjsonElement v):
 	else:
 		raise ValueError("Unknown type")
 
-def keyToPath(key):
-	res = []
-	while key:
-		res.insert(0,
-			{
-				"kind": key.kind,
-				"id": key.id,
-			} if key.id else {
-				"kind": key.kind,
-				"name": key.name
-			} if key.name else {
-				"kind": key.kind,
-			}
-		)
-		key = key.parent
-	return res
+def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity]:
+	"""
+		Runs a single Query as defined by queryDefinition. The limit of the queryDefinition is ignored and must
+		be specified separately to prevent _calculateInternalMultiQueryLimit from modifying the queryDefinition.
 
-def fetchMulti(keys: List[Key]):
-	cdef simdjsonParser parser = simdjsonParser()
-	cdef Py_ssize_t pysize
-	cdef char * data_ptr
-	cdef simdjsonElement element
-
-	keyList = [
-		{
-			"partitionId": {
-				"project_id": projectID,
-			},
-			"path": keyToPath(x)
-		}
-		for x in keys]
-	res = {}
-	currentTxn = currentTransaction.get()
-	if currentTxn:
-		readOptions = {"transaction": currentTxn["key"]}
-	else:
-		readOptions = {"readConsistency": "STRONG"}
-	while keyList:
-		postData = {
-			"readOptions": readOptions,
-			"keys": keyList[:300],
-		}
-		for i in range(0, 3):
-			try:
-				req = _http_internal.post(
-					url="https://datastore.googleapis.com/v1/projects/%s:lookup" % projectID,
-					data=json.dumps(postData).encode("UTF-8"),
-				)
-				break
-			except RequestsConnectionError:
-				logging.debug("Retrying http post request to datastore")
-				if i == 2:
-					raise
-				continue
-		assert req.status_code == 200
-		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
-		element = parser.parse(data_ptr, pysize, 1)
-		if (element.at("found").error() == SUCCESS):
-			res.update(toEntityStructure(element.at_key("found"), isInitial=True))
-		if (element.at("deferred").error() == SUCCESS):
-			keyList = toPythonStructure(element.at_key("deferred")) + keyList[300:]
-		else:
-			keyList = keyList[300:]
-	return [res.get(x) for x in keys]  # Sort by order of incoming keys
-
-
-def pythonPropToJson(v):
-	if v is True or v is False:
-		return {
-			"booleanValue": v
-		}
-	elif isinstance(v, int):
-		return {
-			"integerValue": str(v)
-		}
-	elif isinstance(v, float):
-		return {
-			"doubleValue":v
-		}
-	elif isinstance(v, str):
-		return {
-			"stringValue": v
-		}
-	elif isinstance(v, Key):
-		return {
-			"keyValue": {
-				"partitionId": {
-					"project_id": projectID,
-				},
-				"path": keyToPath(v)
-			}
-		}
-	elif isinstance(v, datetime):
-		return {
-			"timestampValue" : v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-		}
-	elif isinstance(v, Entity):
-		return {
-			"key": pythonPropToJson(v.key)["keyValue"],
-			"properties": {
-				dictKey: pythonPropToJson(dictValue) for dictKey, dictValue in v.items()
-			}
-		}
-	elif isinstance(v, list):
-		return {
-			"arrayValue": {
-				"values": [pythonPropToJson(x) for x in v]
-			}
-		}
-	print(v)
-	assert False
-
-
-def deleteMulti(keys: List[Key]):
-	cdef simdjsonParser parser = simdjsonParser()
-	cdef Py_ssize_t pysize
-	cdef char * data_ptr
-	cdef simdjsonElement element
-	cdef simdjsonArray arrayElem
-	postData = {
-		"mode": "NON_TRANSACTIONAL", #"TRANSACTIONAL", #
-		"mutations": [
-			{
-				"delete": pythonPropToJson(x)["keyValue"]
-			}
-			for x in keys
-		]
-	}
-	currentTxn = currentTransaction.get()
-	if currentTxn:
-		currentTxn["mutations"].extend(postData["mutations"])
-		return
-	req = _http_internal.post(
-		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
-		data=json.dumps(postData).encode("UTF-8"),
-	)
-	if req.status_code != 200:
-		print("INVALID STATUS CODE RECEIVED")
-		print(req.content)
-		pprint.pprint(json.loads(req.content))
-		raise ValueError("Invalid status code received from Datastore API")
-	else:
-		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
-		element = parser.parse(data_ptr, pysize, 1)
-		if (element.at("mutationResults").error() != SUCCESS):
-			print(req.content)
-			raise ValueError("No mutation-results received")
-		arrayElem = element.at_key("mutationResults").get_array()
-		if arrayElem.size() != len(keys):
-			print(req.content)
-			raise ValueError("Invalid number of mutation-results received")
-
-
-def putMulti(entities):
-	cdef simdjsonParser parser = simdjsonParser()
-	cdef Py_ssize_t pysize
-	cdef char * data_ptr
-	cdef simdjsonElement element, innerArrayElem
-	cdef simdjsonArray arrayElem
-	cdef simdjsonArray.iterator arrayIt
-
-	postData = {
-		"mode": "NON_TRANSACTIONAL", # Always NON_TRANSACTIONAL; if we're inside a transaction we'll abort below
-		"mutations": [
-			{
-				"upsert": pythonPropToJson(x)
-			}
-			for x in entities
-		]
-	}
-	currentTxn = currentTransaction.get()
-	if currentTxn:  # We're currently inside a transaction, just queue the changes
-		currentTxn["mutations"].extend(postData["mutations"])
-		return
-	req = _http_internal.post(
-		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
-		data=json.dumps(postData).encode("UTF-8"),
-	)
-	if req.status_code != 200:
-		print("INVALID STATUS CODE RECEIVED")
-		print(req.content)
-		pprint.pprint(json.loads(req.content))
-		raise ValueError("Invalid status code received from Datastore API")
-	else:
-		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
-		element = parser.parse(data_ptr, pysize, 1)
-		if (element.at("mutationResults").error() != SUCCESS):
-			print(req.content)
-			raise ValueError("No mutation-results received")
-		arrayElem = element.at_key("mutationResults").get_array()
-		if arrayElem.size() != len(entities):
-			print(req.content)
-			raise ValueError("Invalid number of mutation-results received")
-		arrayIt = arrayElem.begin()
-		idx = 0
-		while arrayIt != arrayElem.end():
-			innerArrayElem = dereference(arrayIt)
-			if innerArrayElem.at("key").error() == SUCCESS:  # We got a new key assigned
-				entities[idx].key = parseKey(innerArrayElem.at_key("key"))
-			entities[idx].version = toPyStr(innerArrayElem.at_key("version").get_string())
-			preincrement(arrayIt)
-			idx += 1
-	return entities
-
-def runInTransaction(callback, *args, **kwargs):
-	oldTxn = currentTransaction.get()
-	allowOverriding = kwargs.pop("__allowOverriding__", None)
-	nestingIndex = kwargs.pop("__nestingIndex__", 0)
-	if oldTxn:
-		if not allowOverriding:
-			raise RecursionError("Cannot call runInTransaction while inside a transaction!")
-		txnOptions = {
-			"previousTransaction": oldTxn["key"]
-		}
-	else:
-		txnOptions = {}
-	postData = {
-		"transactionOptions": {
-			"readWrite": txnOptions
-		}
-	}
-	req = _http_internal.post(
-		url="https://datastore.googleapis.com/v1/projects/%s:beginTransaction" % projectID,
-		data=json.dumps(postData).encode("UTF-8"),
-	)
-	if req.status_code != 200:
-		print("INVALID STATUS CODE RECEIVED")
-		print(req.content)
-		pprint.pprint(json.loads(req.content))
-		raise ValueError("Invalid status code received from Datastore API")
-	else:
-		txnKey = json.loads(req.content)["transaction"]
-		try:
-			currentTxn = {"key": txnKey, "mutations": []}
-			currentTransaction.set(currentTxn)
-			try:
-				res = callback(*args, **kwargs)
-			except:
-				print("EXCEPTION IN CALLBACK")
-				_rollbackTxn(txnKey)
-				raise
-			if currentTxn["mutations"]:
-				# Commit TXN
-				postData = {
-					"mode":"TRANSACTIONAL", #
-					"transaction": txnKey,
-					"mutations": currentTxn["mutations"]
-				}
-				req = _http_internal.post(
-					url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
-					data=json.dumps(postData).encode("UTF-8"),
-				)
-				if req.status_code != 200:
-					print("INVALID STATUS CODE RECEIVED")
-					print(req.content)
-					pprint.pprint(json.loads(req.content))
-					raise ValueError("Invalid status code received from Datastore API")
-				else:
-					return res
-			else:  # No changes have been made - free txn
-				_rollbackTxn(txnKey)
-		finally:  # Ensure, currentTransaction is always set back to none
-			currentTransaction.set(None)
-
-def _rollbackTxn(txnKey):
-	postData = {
-		"transaction": txnKey
-	}
-	req = _http_internal.post(
-		url="https://datastore.googleapis.com/v1/projects/%s:rollback" % projectID,
-		data=json.dumps(postData).encode("UTF-8"),
-	)
-
-
-def runSingleFilter(queryDefinition, limit):
+		:param queryDefinition: The query to run
+		:param limit:  How many entities to return at maximum
+		:return: The list of entities fetched from the datastore
+	"""
 	cdef simdjsonParser parser = simdjsonParser()
 	cdef Py_ssize_t pysize
 	cdef char * data_ptr
@@ -692,7 +467,7 @@ def runSingleFilter(queryDefinition, limit):
 			postData["query"]["startCursor"] = internalStartCursor or queryDefinition.startCursor
 		if queryDefinition.endCursor:
 			postData["query"]["endCursor"] = queryDefinition.endCursor
-		req = _http_internal.post(
+		req = authenticatedRequest(
 			url="https://datastore.googleapis.com/v1/projects/%s:runQuery" % projectID,
 			data=json.dumps(postData).encode("UTF-8"),
 		)
@@ -710,10 +485,253 @@ def runSingleFilter(queryDefinition, limit):
 		element = element.at_key("batch")
 		if element.at("entityResults").error() == SUCCESS:
 			res.extend(toEntityStructure(element.at_key("entityResults"), isInitial=False))
-		else: # No results received
+		else:  # No results received
 			break
 		if toPyStr(element.at_key("moreResults").get_string()) != "NOT_FINISHED":
 			break
 		internalStartCursor = toPyStr(element.at_key("endCursor").get_string())
 	return res
 
+def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
+	"""
+		Fetches the entities determined by keys from the datastore. Returns or inserts None if a key is not found.
+		:param keys: A Key or a List of Keys to fetch
+		:return: The entity or None for the given key, a list of Entities/None if a list has been supplied
+	"""
+	cdef simdjsonParser parser = simdjsonParser()
+	cdef Py_ssize_t pysize
+	cdef char * data_ptr
+	cdef simdjsonElement element
+	isMulti = True
+	if isinstance(keys, Key):
+		keys = [keys]
+		isMulti = False
+	keyList = [
+		{
+			"partitionId": {
+				"project_id": projectID,
+			},
+			"path": keyToPath(x)
+		}
+		for x in keys]
+
+	currentTxn = currentTransaction.get()
+	if currentTxn:
+		readOptions = {"transaction": currentTxn["key"]}
+	else:
+		readOptions = {"readConsistency": "STRONG"}
+	res = {}
+	while keyList:
+		requestedKeys = keyList[:300]
+		postData = {
+			"readOptions": readOptions,
+			"keys": requestedKeys,
+		}
+		req = authenticatedRequest(
+			url="https://datastore.googleapis.com/v1/projects/%s:lookup" % projectID,
+			data=json.dumps(postData).encode("UTF-8"),
+		)
+		assert req.status_code == 200
+		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+		element = parser.parse(data_ptr, pysize, 1)
+		if (element.at("found").error() == SUCCESS):
+			res.update(toEntityStructure(element.at_key("found"), isInitial=True))
+		if (element.at("deferred").error() == SUCCESS):
+			keyList = toPythonStructure(element.at_key("deferred")) + keyList[300:]
+		else:
+			keyList = keyList[300:]
+	if not isMulti:
+		return res.get(keys[0])
+	else:
+		return [res.get(x) for x in keys]  # Sort by order of incoming keys
+
+def Delete(keys: Union[Key, List[Key]]) -> None:
+	"""
+		Deletes the entities stored under the given key(s).
+		If a key is not found, it's silently ignored.
+		A maximum of 300 Keys can be deleted at once.
+
+		:param keys: A Key or a List of Keys
+	"""
+	cdef simdjsonParser parser = simdjsonParser()
+	cdef Py_ssize_t pysize
+	cdef char * data_ptr
+	cdef simdjsonElement element
+	cdef simdjsonArray arrayElem
+	if isinstance(keys, Key):
+		keys = [keys]
+	postData = {
+		"mode": "NON_TRANSACTIONAL",  #"TRANSACTIONAL", #
+		"mutations": [
+			{
+				"delete": pythonPropToJson(x)["keyValue"]
+			}
+			for x in keys
+		]
+	}
+	currentTxn = currentTransaction.get()
+	if currentTxn:
+		currentTxn["mutations"].extend(postData["mutations"])
+		return
+	req = authenticatedRequest(
+		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
+		data=json.dumps(postData).encode("UTF-8"),
+	)
+	if req.status_code != 200:
+		print("INVALID STATUS CODE RECEIVED")
+		print(req.content)
+		pprint.pprint(json.loads(req.content))
+		raise ValueError("Invalid status code received from Datastore API")
+	else:
+		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+		element = parser.parse(data_ptr, pysize, 1)
+		if (element.at("mutationResults").error() != SUCCESS):
+			print(req.content)
+			raise ValueError("No mutation-results received")
+		arrayElem = element.at_key("mutationResults").get_array()
+		if arrayElem.size() != len(keys):
+			print(req.content)
+			raise ValueError("Invalid number of mutation-results received")
+
+def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
+	"""
+		Writes the given entities into the datastore. The entities can be from different kinds. If an entity has an
+		complete key, and there's already an entity stored under the given key, it's overwritten.
+
+		:param entities: The entities to store
+		:return: The Entity or List of Entities as supplied, with partial keys replaced by full ones (unless called
+			inside a transaction, in which case we return None as no Keys have been determined yet)
+	"""
+	cdef simdjsonParser parser = simdjsonParser()
+	cdef Py_ssize_t pysize
+	cdef char * data_ptr
+	cdef simdjsonElement element, innerArrayElem
+	cdef simdjsonArray arrayElem
+	cdef simdjsonArray.iterator arrayIt
+	if isinstance(entities, Entity):
+		entities = [entities]
+	postData = {
+		"mode": "NON_TRANSACTIONAL",  # Always NON_TRANSACTIONAL; if we're inside a transaction we'll abort below
+		"mutations": [
+			{
+				"upsert": pythonPropToJson(x)["entityValue"]
+			}
+			for x in entities
+		]
+	}
+	currentTxn = currentTransaction.get()
+	if currentTxn:  # We're currently inside a transaction, just queue the changes
+		currentTxn["mutations"].extend(postData["mutations"])
+		return
+	req = authenticatedRequest(
+		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
+		data=json.dumps(postData).encode("UTF-8"),
+	)
+	if req.status_code != 200:
+		print("INVALID STATUS CODE RECEIVED")
+		print(req.content)
+		pprint.pprint(json.loads(req.content))
+		raise ValueError("Invalid status code received from Datastore API")
+	else:
+		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+		element = parser.parse(data_ptr, pysize, 1)
+		if (element.at("mutationResults").error() != SUCCESS):
+			print(req.content)
+			raise ValueError("No mutation-results received")
+		arrayElem = element.at_key("mutationResults").get_array()
+		if arrayElem.size() != len(entities):
+			print(req.content)
+			raise ValueError("Invalid number of mutation-results received")
+		arrayIt = arrayElem.begin()
+		idx = 0
+		while arrayIt != arrayElem.end():
+			innerArrayElem = dereference(arrayIt)
+			if innerArrayElem.at("key").error() == SUCCESS:  # We got a new key assigned
+				entities[idx].key = parseKey(innerArrayElem.at_key("key"))
+			entities[idx].version = toPyStr(innerArrayElem.at_key("version").get_string())
+			preincrement(arrayIt)
+			idx += 1
+	return entities
+
+def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
+	"""
+		Runs the given function inside a AID transaction.
+
+		:param callback: The function to run inside a transaction
+		:param args: Args to pass to the function
+		:param kwargs: Kwargs to pass to the function
+		:return: The return-value of the callback function
+	"""
+	oldTxn = currentTransaction.get()
+	allowOverriding = kwargs.pop("__allowOverriding__", None)
+	if oldTxn:
+		if not allowOverriding:
+			raise RecursionError("Cannot call runInTransaction while inside a transaction!")
+		txnOptions = {
+			"previousTransaction": oldTxn["key"]
+		}
+	else:
+		txnOptions = {}
+	postData = {
+		"transactionOptions": {
+			"readWrite": txnOptions
+		}
+	}
+	req = authenticatedRequest(
+		url="https://datastore.googleapis.com/v1/projects/%s:beginTransaction" % projectID,
+		data=json.dumps(postData).encode("UTF-8"),
+	)
+	if req.status_code != 200:
+		print("INVALID STATUS CODE RECEIVED")
+		print(req.content)
+		pprint.pprint(json.loads(req.content))
+		raise ValueError("Invalid status code received from Datastore API")
+	else:
+		txnKey = json.loads(req.content)["transaction"]
+		try:
+			currentTxn = {"key": txnKey, "mutations": []}
+			currentTransaction.set(currentTxn)
+			try:
+				res = callback(*args, **kwargs)
+			except:
+				print("EXCEPTION IN CALLBACK")
+				_rollbackTxn(txnKey)
+				raise
+			if currentTxn["mutations"]:
+				# Commit TXN
+				postData = {
+					"mode": "TRANSACTIONAL",  #
+					"transaction": txnKey,
+					"mutations": currentTxn["mutations"]
+				}
+				req = authenticatedRequest(
+					url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
+					data=json.dumps(postData).encode("UTF-8"),
+				)
+				if req.status_code != 200:
+					print("INVALID STATUS CODE RECEIVED")
+					print(req.content)
+					pprint.pprint(json.loads(req.content))
+					raise ValueError("Invalid status code received from Datastore API")
+				else:
+					return res
+			else:  # No changes have been made - free txn
+				_rollbackTxn(txnKey)
+		finally:  # Ensure, currentTransaction is always set back to none
+			currentTransaction.set(None)
+
+def _rollbackTxn(txnKey: str):
+	"""
+		Internal helper that aborts the given transaction. It's important to abort pending transactions (instead
+		of letting them expire server-side) so that other requests that are stalled waiting for this transaction to
+		complete can continue.
+
+		:param txnKey: The ID of the transaction that should be aborted
+	"""
+	postData = {
+		"transaction": txnKey
+	}
+	req = authenticatedRequest(
+		url="https://datastore.googleapis.com/v1/projects/%s:rollback" % projectID,
+		data=json.dumps(postData).encode("UTF-8"),
+	)

@@ -1,0 +1,102 @@
+from viur.datastore.types import Entity, Key, currentTransaction
+from viur.datastore.transport import Get, Put, RunInTransaction
+from typing import Union, List
+
+def fixUnindexableProperties(entry: Entity) -> Entity:
+	"""
+		Recursively walk the given Entity and add all properties to the list of unindexed properties if they contain
+		a string longer than 500 bytes (which is maximum size of a string that can be indexed). The datastore would
+		return an error otherwise.
+	:param entry: The entity to fix (inplace)
+	:return: The fixed entity
+	"""
+	def hasUnindexableProperty(prop):
+		if isinstance(prop, dict):
+			return any([hasUnindexableProperty(x) for x in prop.values()])
+		elif isinstance(prop, list):
+			return any([hasUnindexableProperty(x) for x in prop])
+		elif isinstance(prop, (str, bytes)):
+			return len(prop) >= 500
+		else:
+			return False
+
+	resList = []
+	for k, v in entry.items():
+		if hasUnindexableProperty(v):
+			if isinstance(v, dict):
+				innerEntry = Entity()
+				innerEntry.update(v)
+				entry[k] = fixUnindexableProperties(innerEntry)
+				if isinstance(v, Entity):
+					innerEntry.key = v.key
+			else:
+				resList.append(k)
+	entry.exclude_from_indexes = resList
+	return entry
+
+def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
+	"""
+		Normalizes a datastore key (replacing _application with the current one)
+
+		:param key: Key to be normalized.
+		:return: Normalized key in string representation.
+	"""
+	if key is None:
+		return None
+	if key.parent:
+		parent = normalizeKey(key.parent)
+	else:
+		parent = None
+	return Key(key.kind, key.id_or_name, parent=parent)
+
+
+def keyHelper(inKey: Union[Key, str, int], targetKind: str,
+			  additionalAllowdKinds: Union[None, List[str]] = None) -> Key:
+	if isinstance(inKey, str):
+		try:
+			decodedKey = normalizeKey(Key.from_legacy_urlsafe(inKey))
+		except:
+			decodedKey = None
+		if decodedKey:  # If it did decode, don't try any further
+			if decodedKey.kind != targetKind and (not additionalAllowdKinds or inKey.kind not in additionalAllowdKinds):
+				raise ValueError("Kin1d mismatch: %s != %s" % (decodedKey.kind, targetKind))
+			return decodedKey
+		if inKey.isdigit():
+			inKey = int(inKey)
+		return Key(targetKind, inKey)
+	elif isinstance(inKey, int):
+		return Key(targetKind, inKey)
+	elif isinstance(inKey, Key):
+		if inKey.kind != targetKind and (not additionalAllowdKinds or inKey.kind not in additionalAllowdKinds):
+			raise ValueError("Kin1d mismatch: %s != %s (%s)" % (inKey.kind, targetKind, additionalAllowdKinds))
+		return inKey
+	else:
+		raise ValueError("Unknown key type %r" % type(inKey))
+
+def IsInTransaction() -> bool:
+	return currentTransaction.get() is not None
+
+def GetOrInsert(key: Key, **kwargs) -> Entity:
+	"""
+		Either creates a new entity with the given key, or returns the existing one.
+
+		Its guaranteed that there is no race-condition here; it will never overwrite an
+		previously created entity. Extra keyword arguments passed to this function will be
+		used to populate the entity if it has to be created; otherwise they are ignored.
+
+		:param key: The key which will be fetched or created.
+		:returns: Returns the fetched or newly created Entity.
+	"""
+
+	def txn(key, kwargs):
+		obj = Get(key)
+		if not obj:
+			obj = Entity(key)
+			for k, v in kwargs.items():
+				obj[k] = v
+			Put(obj)
+		return obj
+
+	if IsInTransaction():
+		return txn(key, kwargs)
+	return RunInTransaction(txn, key, kwargs)
