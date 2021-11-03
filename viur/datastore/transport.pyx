@@ -572,6 +572,8 @@ def Delete(keys: Union[Key, List[Key]]) -> None:
 	currentTxn = currentTransaction.get()
 	if currentTxn:
 		currentTxn["mutations"].extend(postData["mutations"])
+		# Insert placeholders into affectedEntities as we receive a mutation-result for each key deleted
+		currentTxn["affectedEntities"].extend([None] * len(keys))
 		return
 	req = authenticatedRequest(
 		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
@@ -622,6 +624,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 	currentTxn = currentTransaction.get()
 	if currentTxn:  # We're currently inside a transaction, just queue the changes
 		currentTxn["mutations"].extend(postData["mutations"])
+		currentTxn["affectedEntities"].extend(entities)
 		return
 	req = authenticatedRequest(
 		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
@@ -662,6 +665,12 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 		:param kwargs: Kwargs to pass to the function
 		:return: The return-value of the callback function
 	"""
+	cdef simdjsonParser parser = simdjsonParser()
+	cdef Py_ssize_t pysize
+	cdef char * data_ptr
+	cdef simdjsonElement element, innerArrayElem
+	cdef simdjsonArray arrayElem
+	cdef simdjsonArray.iterator arrayIt
 	oldTxn = currentTransaction.get()
 	allowOverriding = kwargs.pop("__allowOverriding__", None)
 	if oldTxn:
@@ -689,7 +698,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 	else:
 		txnKey = json.loads(req.content)["transaction"]
 		try:
-			currentTxn = {"key": txnKey, "mutations": []}
+			currentTxn = {"key": txnKey, "mutations": [], "affectedEntities": []}
 			currentTransaction.set(currentTxn)
 			try:
 				res = callback(*args, **kwargs)
@@ -713,8 +722,29 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 					print(req.content)
 					pprint.pprint(json.loads(req.content))
 					raise ValueError("Invalid status code received from Datastore API")
-				else:
-					return res
+				assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+				element = parser.parse(data_ptr, pysize, 1)
+				if (element.at("mutationResults").error() != SUCCESS):
+					print(req.content)
+					raise ValueError("No mutation-results received")
+				arrayElem = element.at_key("mutationResults").get_array()
+				if arrayElem.size() != len(currentTxn["affectedEntities"]):
+					print(req.content)
+					raise ValueError("Invalid number of mutation-results received")
+				arrayIt = arrayElem.begin()
+				idx = 0
+				while arrayIt != arrayElem.end():
+					innerArrayElem = dereference(arrayIt)
+					if innerArrayElem.at("key").error() == SUCCESS:  # We got a new key assigned
+						affectedEntity = currentTxn["affectedEntities"][idx]
+						if not affectedEntity:
+							print(req.content)
+							raise ValueError("Received an unexpected key-update")
+						affectedEntity.key = parseKey(innerArrayElem.at_key("key"))
+						affectedEntity.version = toPyStr(innerArrayElem.at_key("version").get_string())
+					preincrement(arrayIt)
+					idx += 1
+				return res
 			else:  # No changes have been made - free txn
 				_rollbackTxn(txnKey)
 				return res
