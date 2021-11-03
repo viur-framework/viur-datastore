@@ -149,8 +149,9 @@ class Entity(dict):
 	"""
 	__slots__ = ["key", "exclude_from_indexes", "version"]
 
-	def __init__(self, key=None, exclude_from_indexes=None):
+	def __init__(self, key: Optional[Key] = None, exclude_from_indexes: Optional[Tuple] = None):
 		super(Entity, self).__init__()
+		assert not key or isinstance(key, Key), "Key must be a Key-Object (or None for an embedded entity)"
 		self.key = key
 		self.exclude_from_indexes = exclude_from_indexes or set()
 		self.version = None
