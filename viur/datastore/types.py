@@ -149,10 +149,10 @@ class Entity(dict):
 	"""
 	__slots__ = ["key", "exclude_from_indexes", "version"]
 
-	def __init__(self, key=None, exclude_from_indexes=()):
+	def __init__(self, key=None, exclude_from_indexes=None):
 		super(Entity, self).__init__()
 		self.key = key
-		self.exclude_from_indexes = exclude_from_indexes
+		self.exclude_from_indexes = exclude_from_indexes or set()
 		self.version = None
 
 

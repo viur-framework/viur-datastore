@@ -1,6 +1,8 @@
 from viur.datastore.types import Entity, Key, currentTransaction
 from viur.datastore.transport import Get, Put, RunInTransaction
 from typing import Union, List
+import binascii
+from datetime import datetime
 
 def fixUnindexableProperties(entry: Entity) -> Entity:
 	"""
@@ -20,7 +22,7 @@ def fixUnindexableProperties(entry: Entity) -> Entity:
 		else:
 			return False
 
-	resList = []
+	resList = set()
 	for k, v in entry.items():
 		if hasUnindexableProperty(v):
 			if isinstance(v, dict):
@@ -30,7 +32,7 @@ def fixUnindexableProperties(entry: Entity) -> Entity:
 				if isinstance(v, Entity):
 					innerEntry.key = v.key
 			else:
-				resList.append(k)
+				resList.add(k)
 	entry.exclude_from_indexes = resList
 	return entry
 
@@ -87,7 +89,6 @@ def GetOrInsert(key: Key, **kwargs) -> Entity:
 		:param key: The key which will be fetched or created.
 		:returns: Returns the fetched or newly created Entity.
 	"""
-
 	def txn(key, kwargs):
 		obj = Get(key)
 		if not obj:
@@ -100,3 +101,26 @@ def GetOrInsert(key: Key, **kwargs) -> Entity:
 	if IsInTransaction():
 		return txn(key, kwargs)
 	return RunInTransaction(txn, key, kwargs)
+
+def encodeKey(key: Key) -> str:
+	"""
+		Return the given key encoded as string (mimicking the old str() behaviour of keys)
+	"""
+	return key.to_legacy_urlsafe().decode("ASCII")
+
+def acquireTransactionSuccessMarker() -> str:
+	"""
+		Generates a token that will be written to the firestore (under "viur-transactionmarker") if the transaction
+		completes successfully. Currently only used by deferredTasks to check if the task should actually execute
+		or if the transaction it was created in failed.
+		:return: Name of the entry in viur-transactionmarker
+	"""
+	txn = currentTransaction.get()
+	assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
+	marker = binascii.b2a_hex(txn["key"]).decode("ASCII")
+	if not "viurTxnMarkerSet" in txn:
+		e = Entity(Key("viur-transactionmarker", marker))
+		e["creationdate"] = datetime.utcnow()
+		Put(e)
+		txn["viurTxnMarkerSet"] = True
+	return marker

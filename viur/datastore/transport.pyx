@@ -717,6 +717,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 					return res
 			else:  # No changes have been made - free txn
 				_rollbackTxn(txnKey)
+				return res
 		finally:  # Ensure, currentTransaction is always set back to none
 			currentTransaction.set(None)
 
