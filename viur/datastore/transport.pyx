@@ -656,6 +656,9 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			idx += 1
 	return entities
 
+class Collision(Exception):
+	pass
+
 def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 	"""
 		Runs the given function inside a AID transaction.
@@ -671,85 +674,92 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 	cdef simdjsonElement element, innerArrayElem
 	cdef simdjsonArray arrayElem
 	cdef simdjsonArray.iterator arrayIt
-	oldTxn = currentTransaction.get()
-	allowOverriding = kwargs.pop("__allowOverriding__", None)
-	if oldTxn:
-		if not allowOverriding:
-			raise RecursionError("Cannot call runInTransaction while inside a transaction!")
-		txnOptions = {
-			"previousTransaction": oldTxn["key"]
-		}
-	else:
-		txnOptions = {}
-	postData = {
-		"transactionOptions": {
-			"readWrite": txnOptions
-		}
-	}
-	req = authenticatedRequest(
-		url="https://datastore.googleapis.com/v1/projects/%s:beginTransaction" % projectID,
-		data=json.dumps(postData).encode("UTF-8"),
-	)
-	if req.status_code != 200:
-		print("INVALID STATUS CODE RECEIVED")
-		print(req.content)
-		pprint.pprint(json.loads(req.content))
-		raise ValueError("Invalid status code received from Datastore API")
-	else:
-		txnKey = json.loads(req.content)["transaction"]
+	for _ in range(0, 3):
 		try:
-			currentTxn = {"key": txnKey, "mutations": [], "affectedEntities": []}
-			currentTransaction.set(currentTxn)
-			try:
-				res = callback(*args, **kwargs)
-			except:
-				print("EXCEPTION IN CALLBACK")
-				_rollbackTxn(txnKey)
-				raise
-			if currentTxn["mutations"]:
-				# Commit TXN
-				postData = {
-					"mode": "TRANSACTIONAL",  #
-					"transaction": txnKey,
-					"mutations": currentTxn["mutations"]
+			oldTxn = currentTransaction.get()
+			allowOverriding = kwargs.pop("__allowOverriding__", None)
+			if oldTxn:
+				if not allowOverriding:
+					raise RecursionError("Cannot call runInTransaction while inside a transaction!")
+				txnOptions = {
+					"previousTransaction": oldTxn["key"]
 				}
-				req = authenticatedRequest(
-					url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
-					data=json.dumps(postData).encode("UTF-8"),
-				)
-				if req.status_code != 200:
-					print("INVALID STATUS CODE RECEIVED")
-					print(req.content)
-					pprint.pprint(json.loads(req.content))
-					raise ValueError("Invalid status code received from Datastore API")
-				assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
-				element = parser.parse(data_ptr, pysize, 1)
-				if (element.at("mutationResults").error() != SUCCESS):
-					print(req.content)
-					raise ValueError("No mutation-results received")
-				arrayElem = element.at_key("mutationResults").get_array()
-				if arrayElem.size() != len(currentTxn["affectedEntities"]):
-					print(req.content)
-					raise ValueError("Invalid number of mutation-results received")
-				arrayIt = arrayElem.begin()
-				idx = 0
-				while arrayIt != arrayElem.end():
-					innerArrayElem = dereference(arrayIt)
-					if innerArrayElem.at("key").error() == SUCCESS:  # We got a new key assigned
-						affectedEntity = currentTxn["affectedEntities"][idx]
-						if not affectedEntity:
+			else:
+				txnOptions = {}
+			postData = {
+				"transactionOptions": {
+					"readWrite": txnOptions
+				}
+			}
+			req = authenticatedRequest(
+				url="https://datastore.googleapis.com/v1/projects/%s:beginTransaction" % projectID,
+				data=json.dumps(postData).encode("UTF-8"),
+			)
+			if req.status_code != 200:
+				print("INVALID STATUS CODE RECEIVED")
+				print(req.content)
+				pprint.pprint(json.loads(req.content))
+				raise ValueError("Invalid status code received from Datastore API")
+			else:
+				txnKey = json.loads(req.content)["transaction"]
+				try:
+					currentTxn = {"key": txnKey, "mutations": [], "affectedEntities": []}
+					currentTransaction.set(currentTxn)
+					try:
+						res = callback(*args, **kwargs)
+					except:
+						print("EXCEPTION IN CALLBACK")
+						_rollbackTxn(txnKey)
+						raise
+					if currentTxn["mutations"]:
+						# Commit TXN
+						postData = {
+							"mode": "TRANSACTIONAL",  #
+							"transaction": txnKey,
+							"mutations": currentTxn["mutations"]
+						}
+						req = authenticatedRequest(
+							url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
+							data=json.dumps(postData).encode("UTF-8"),
+						)
+						if req.status_code != 200:
+							if req.status_code == 409:  # We got a collision, in which case we can retry
+								raise Collision()
+							print("INVALID STATUS CODE RECEIVED")
 							print(req.content)
-							raise ValueError("Received an unexpected key-update")
-						affectedEntity.key = parseKey(innerArrayElem.at_key("key"))
-						affectedEntity.version = toPyStr(innerArrayElem.at_key("version").get_string())
-					preincrement(arrayIt)
-					idx += 1
-				return res
-			else:  # No changes have been made - free txn
-				_rollbackTxn(txnKey)
-				return res
-		finally:  # Ensure, currentTransaction is always set back to none
-			currentTransaction.set(None)
+							pprint.pprint(json.loads(req.content))
+							raise ValueError("Invalid status code received from Datastore API")
+						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+						element = parser.parse(data_ptr, pysize, 1)
+						if (element.at("mutationResults").error() != SUCCESS):
+							print(req.content)
+							raise ValueError("No mutation-results received")
+						arrayElem = element.at_key("mutationResults").get_array()
+						if arrayElem.size() != len(currentTxn["affectedEntities"]):
+							print(req.content)
+							raise ValueError("Invalid number of mutation-results received")
+						arrayIt = arrayElem.begin()
+						idx = 0
+						while arrayIt != arrayElem.end():
+							innerArrayElem = dereference(arrayIt)
+							if innerArrayElem.at("key").error() == SUCCESS:  # We got a new key assigned
+								affectedEntity = currentTxn["affectedEntities"][idx]
+								if not affectedEntity:
+									print(req.content)
+									raise ValueError("Received an unexpected key-update")
+								affectedEntity.key = parseKey(innerArrayElem.at_key("key"))
+								affectedEntity.version = toPyStr(innerArrayElem.at_key("version").get_string())
+							preincrement(arrayIt)
+							idx += 1
+						return res
+					else:  # No changes have been made - free txn
+						_rollbackTxn(txnKey)
+						return res
+				finally:  # Ensure, currentTransaction is always set back to none
+					currentTransaction.set(None)
+		except Collision:  # Got a collision; retry the entire transaction
+			logging.warning("Transaction collision, retrying...")
+	raise Collision() # If we made it here, all tries are exhausted
 
 def _rollbackTxn(txnKey: str):
 	"""
