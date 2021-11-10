@@ -7,6 +7,7 @@ from copy import deepcopy
 from viur.datastore.types import QueryDefinition, DATASTORE_BASE_TYPES, Entity, currentDbAccessLog, SortOrder, SkelListRef
 from viur.datastore.transport import runSingleFilter
 from viur.datastore.utils import IsInTransaction
+from base64 import urlsafe_b64encode, urlsafe_b64decode
 
 traceQueries = False  #FIXME
 SkeletonInstanceRef = None  #FIXME
@@ -306,8 +307,8 @@ class Query(object):
 			:returns: Returns the query itself for chaining.
 		"""
 		assert isinstance(self.queries, QueryDefinition)
-		self.queries.startCursor = startCursor
-		self.queries.endCursor = endCursor
+		self.queries.startCursor = urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII") if startCursor else None
+		self.queries.endCursor = urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII") if endCursor else None
 		return self
 
 
@@ -356,7 +357,7 @@ class Query(object):
 			q = self.queries
 		elif isinstance(self.queries, list):
 			q = self.queries[0]
-		return q.currentCursor.decode("ASCII") if q.currentCursor else None
+		return urlsafe_b64encode(q.currentCursor.encode("ASCII")).decode("ASCII") if q.currentCursor else None
 
 	def getKind(self) -> str:
 		"""

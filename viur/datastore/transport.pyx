@@ -412,7 +412,7 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 						"name": queryDefinition.kind,
 					}
 				],
-				"limit": limit
+				"limit": limit - len(res)
 			},
 		}
 		if queryDefinition.filters:
@@ -487,9 +487,10 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 			res.extend(toEntityStructure(element.at_key("entityResults"), isInitial=False))
 		else:  # No results received
 			break
-		if toPyStr(element.at_key("moreResults").get_string()) != "NOT_FINISHED":
-			break
 		internalStartCursor = toPyStr(element.at_key("endCursor").get_string())
+		if toPyStr(element.at_key("moreResults").get_string()) != "NOT_FINISHED" or len(res) == limit:
+			break
+	queryDefinition.currentCursor = internalStartCursor
 	return res
 
 def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
