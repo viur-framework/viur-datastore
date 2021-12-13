@@ -1,4 +1,4 @@
-# distutils: sources = viur/datastore/simdjson.cpp
+# distutils: sources = src/viur/datastore/simdjson.cpp
 # distutils: language = c++
 # cython: language_level=3
 import base64
@@ -709,7 +709,6 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 					try:
 						res = callback(*args, **kwargs)
 					except:
-						print("EXCEPTION IN CALLBACK")
 						_rollbackTxn(txnKey)
 						raise
 					if currentTxn["mutations"]:
