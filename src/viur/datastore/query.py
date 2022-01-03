@@ -216,11 +216,22 @@ class Query(object):
 					newFilter.filters["%s =" % field] = val
 					self.queries.append(newFilter)
 		else:
+			filterStr = "%s %s" % (field, op)
 			if isinstance(self.queries, list):
 				for singeFilter in self.queries:
-					singeFilter.filters["%s %s" % (field, op)] = value
+					if filterStr not in singeFilter.filters:
+						singeFilter.filters[filterStr] = value
+					else:
+						if not isinstance(singeFilter.filters[filterStr]):
+							singeFilter.filters[filterStr] = [singeFilter.filters[filterStr]]
+						singeFilter.filters[filterStr].append(value)
 			else:  # It must be still a dict (we tested for None already above)
-				self.queries.filters["%s %s" % (field, op)] = value
+				if filterStr not in self.queries.filters:
+					self.queries.filters[filterStr] = value
+				else:
+					if not isinstance(self.queries.filters[filterStr], list):
+						self.queries.filters[filterStr] = [self.queries.filters[filterStr]]
+					self.queries.filters[filterStr].append(value)
 			if op in {"<", "<=", ">", ">="}:
 				if isinstance(self.queries, list):
 					for queryObj in self.queries:
@@ -575,15 +586,13 @@ class Query(object):
 		res.getCursor = lambda: self.getCursor()
 		return res
 
-	def iter(self, keysOnly=False):
+	def iter(self):
 		"""
 			Run this query and return an iterator for the results.
 
 			The advantage of this function is, that it allows for iterating
 			over a large result-set, as it hasn't have to be pulled in advance
 			from the data store.
-
-			The disadvantage is, that is supports no caching yet.
 
 			This function intentionally ignores a limit set by :func:`server.db.Query.limit`.
 
