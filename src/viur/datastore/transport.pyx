@@ -395,6 +395,7 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 	cdef simdjsonElement element
 	res = []
 	internalStartCursor = None  # Will be set if we need to fetch more than one batch
+	flipResults = False  # If set, we'll reverse the list returned (Sortorder was Inverted*)
 	currentTxn = currentTransaction.get()
 	if currentTxn:
 		readOptions = {"transaction": currentTxn["key"]}
@@ -431,16 +432,21 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 					op = "GREATER_THAN_OR_EQUAL"
 				else:
 					raise ValueError("Invalid op %s" % op)
-				filterList.append({
-					"propertyFilter": {
-						"property": {
-							"name": key,
-						},
-						"op": op,
-						"value": pythonPropToJson(v)
-					}
-				}
-				)
+				if not isinstance(v, list):
+					# An entity can have a list of values for a single property, so it's possible to enforce
+					# more an one constraint for a a single property (e.g. x==5 and x==7 can be true), so
+					# enforce we always have a list here
+					v = [v]
+				for singleValue in v:
+					filterList.append({
+						"propertyFilter": {
+							"property": {
+								"name": key,
+							},
+							"op": op,
+							"value": pythonPropToJson(singleValue)
+						}
+					})
 			if len(filterList) == 1:  # Special, single filter
 				postData["query"]["filter"] = filterList[0]
 			else:
@@ -457,6 +463,7 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 					"direction": "ASCENDING" if sortOrder[1].value in [1, 4] else "DESCENDING"
 				} for sortOrder in queryDefinition.orders
 			]
+			flipResults = queryDefinition.orders[0][1].value > 2  # Either InvertedAscending or InvertedDescending
 		if queryDefinition.distinct:
 			postData["query"]["distinctOn"] = [
 				{
@@ -491,6 +498,8 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 		if toPyStr(element.at_key("moreResults").get_string()) != "NOT_FINISHED" or len(res) == limit:
 			break
 	queryDefinition.currentCursor = internalStartCursor
+	if flipResults:
+		return res[::-1]
 	return res
 
 def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
