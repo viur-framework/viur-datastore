@@ -91,7 +91,8 @@ class Key:
 		return hash("%s.%s.%s" % (self.kind, self.id, self.name))
 
 	def __eq__(self, other):
-		return self.kind == other.kind and self.id == other.id and self.name == other.name and self.parent == other.parent
+		return isinstance(other, Key) and self.kind == other.kind and self.id == other.id and self.name == other.name \
+			   and self.parent == other.parent
 
 	def to_legacy_urlsafe(self) -> str:
 		"""
