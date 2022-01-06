@@ -555,7 +555,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	else:
 		return [res.get(x) for x in keys]  # Sort by order of incoming keys
 
-def Delete(keys: Union[Key, List[Key]]) -> None:
+def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 	"""
 		Deletes the entities stored under the given key(s).
 		If a key is not found, it's silently ignored.
@@ -570,6 +570,9 @@ def Delete(keys: Union[Key, List[Key]]) -> None:
 	cdef simdjsonArray arrayElem
 	if isinstance(keys, Key):
 		keys = [keys]
+	elif isinstance(keys, Entity):
+		keys = [keys.key]
+	keys = [(x.key if isinstance(x, Entity) else x) for x in keys]
 	postData = {
 		"mode": "NON_TRANSACTIONAL",  #"TRANSACTIONAL", #
 		"mutations": [
