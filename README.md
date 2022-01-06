@@ -1,12 +1,10 @@
-An *experimental* datastore accelerator for ViUR
-------------------------------------------------
+The Datastore wrapper for ViUR-Core
+-----------------------------------
 
-This repository contains a hackish Cython wrapper around the datastore REST-Api method lookup.
-The current google.cloud.datastore implementation has some serious performance penalties when retrieving
-many or larger entities. This slim wrapper can be used instead for a significant speed gain.
-We utilize the simdjson to convert the received json-encoded protocol buffer directly to the Entity/Key classes
-provided by google.cloud.datastore - without converting that json to an intermediate set of python dicts/lists,
-gaining a vast reduction in CPU cycles.  
+This repository contains the datastore wrapper for the ViUR framework.
+We build our own wrapper around it's REST-API as the original wrapper has significant CPU overhead.
+Using a fast JSON-Parser (simdjson) and Cython, we can go directly from the received JSON-encoded protocol-wrapper
+representation to the final python objects, without converting that JSON into an intermediate python object
+representation which then gets discarded right away.
 
-> :warning: **This is a very early experimental proof-of-concept.** 
-
+While it has some ViUR specific functions, it's also possible to use this wrapper outside ViUR.

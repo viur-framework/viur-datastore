@@ -1,0 +1,2 @@
+include README.rst LICENSE LICENSE-APACHE LICENSE-GPL
+recursive-include src *.pyx *.cpp *.h
