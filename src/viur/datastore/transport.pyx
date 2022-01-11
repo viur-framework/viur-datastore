@@ -794,3 +794,59 @@ def _rollbackTxn(txnKey: str):
 		url="https://datastore.googleapis.com/v1/projects/%s:rollback" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
+
+def AllocateIDs(keys: Union[Key, List[Key]]) -> Union[Key, List[Key]]:
+	"""
+		Allocates numeric IDs for the keys given.
+		:return: The complete Key (or a list hereof)
+
+		.. warning: This function does not support transactions! Even if called inside transactions, the keys will
+			be allocated immediately, even if the transaction aborts.
+	"""
+	cdef simdjsonParser parser = simdjsonParser()
+	cdef Py_ssize_t pysize
+	cdef char * data_ptr
+	cdef simdjsonElement element
+	isMulti = True
+	if isinstance(keys, Key):
+		keys = [keys]
+		isMulti = False
+	keyList = [
+		{
+			"partitionId": {
+				"project_id": projectID,
+			},
+			"path": keyToPath(x)
+		}
+		for x in keys]
+
+	requestedKeys = keyList[:300]
+	postData = {
+		"keys": requestedKeys,
+	}
+	req = authenticatedRequest(
+		url="https://datastore.googleapis.com/v1/projects/%s:allocateIds" % projectID,
+		data=json.dumps(postData).encode("UTF-8"),
+	)
+	assert req.status_code == 200
+	assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+	element = parser.parse(data_ptr, pysize, 1)
+	res = []
+	if (element.at("keys").error() == SUCCESS):
+		arrayElem = element.at_key("keys").get_array()
+		arrayIt = arrayElem.begin()
+		while arrayIt != arrayElem.end():
+			innerArrayElem = dereference(arrayIt)
+			res.append( parseKey(innerArrayElem))
+			preincrement(arrayIt)
+		if not res:
+			raise ValueError("Empty response received from Datastore API")
+		elif not isMulti:
+			return res[0]
+		else:
+			return res
+	else:
+		logging.error("Invalid data received from Datastore API")
+		logging.error(req.content)
+		raise ValueError("Invalid data received from Datastore API")
+
