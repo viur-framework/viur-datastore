@@ -117,7 +117,7 @@ def acquireTransactionSuccessMarker() -> str:
 	"""
 	txn = currentTransaction.get()
 	assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
-	marker = binascii.b2a_hex(txn["key"]).decode("ASCII")
+	marker = txn["key"] #binascii.b2a_hex(txn["key"]).decode("ASCII")
 	if not "viurTxnMarkerSet" in txn:
 		e = Entity(Key("viur-transactionmarker", marker))
 		e["creationdate"] = datetime.utcnow()
