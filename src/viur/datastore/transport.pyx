@@ -185,7 +185,7 @@ def pythonPropToJson(v) -> dict:
 			"timestampValue": v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 		}
 	elif isinstance(v, (Entity, dict)):
-		return {
+		res = {
 			"entityValue": {
 				"key": pythonPropToJson(v.key)["keyValue"] if isinstance(v, Entity) and v.key else None,
 				"properties": {
@@ -194,6 +194,12 @@ def pythonPropToJson(v) -> dict:
 
 			}
 		}
+		if isinstance(v, Entity):
+			# We might have properties that should be excluded from being indexed
+			for excludedProperty in v.exclude_from_indexes:
+				if excludedProperty in res["entityValue"]["properties"]:
+					res["entityValue"]["properties"][excludedProperty]["excludeFromIndexes"] = True
+		return res
 	elif isinstance(v, list):
 		return {
 			"arrayValue": {
