@@ -15,7 +15,7 @@ setup(
 	package_dir={'': 'src'},
 	python_requires=">=3.7",
 	cmdclass={'build_ext': build_ext},
-	ext_modules=cythonize([Extension("viur.datastore.transport", ["src/viur/datastore/transport.pyx"])]),
+	ext_modules=cythonize([Extension("viur.datastore.transport", ["src/viur/datastore/transport.pyx"], language="c++")]),
 	classifiers=[
 		"Programming Language :: Python :: 3",
 		"Development Status :: 4 - Beta",
