@@ -8,6 +8,16 @@
 
 ### Removed
 
+## [0.3]
+
+### Added
+- AllocateIDs function
+
+### Fixed
+- Building on MacOS
+- Excluding properties from indexes
+- acquireTransactionSuccessMarker
+
 ## [0.2]
 
 ### Added
