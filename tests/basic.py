@@ -53,6 +53,32 @@ class BasicFunctionTest(BaseTestClass):
 		for k, v in datastoreSampleValues.items():
 			self.assertEqual(viurTypeToGoogleType(entity3[k]), v)
 
+	def test_unindexed_list(self):
+		"""
+			The indexed/unindexed flag is handled differently than all other datatypes.
+			Ensure, we can set a list to un-indexed.
+		"""
+		testList = ["a"*600, "b"*600]
+		entity = datastore.Entity(datastore.Key("test-kind", "test-entity"))
+		entity["testlist"] = testList
+		entity.exclude_from_indexes.add("testlist")
+		datastore.Put(entity)
+		entity = datastore.Get(datastore.Key("test-kind", "test-entity"))
+		self.assertEqual(entity["testlist"], testList)
+		self.assertTrue("testlist" in entity.exclude_from_indexes)
+
+	def test_indexed_list(self):
+		"""
+			The indexed/unindexed flag is handled differently than all other datatypes.
+			Ensure, we can store an indexed list.
+		"""
+		testList = ["a"*300, "b"*300]
+		entity = datastore.Entity(datastore.Key("test-kind", "test-entity"))
+		entity["testlist"] = testList
+		datastore.Put(entity)
+		entity = datastore.Get(datastore.Key("test-kind", "test-entity"))
+		self.assertEqual(entity["testlist"], testList)
+		self.assertFalse("testlist" in entity.exclude_from_indexes)
 
 if __name__ == '__main__':
 	unittest.main()

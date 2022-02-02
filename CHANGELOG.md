@@ -5,6 +5,8 @@
 ### Changed
 
 ### Fixed
+- exclude_from_index Flag on list properties
+- Building on MacOS again
 
 ### Removed
 

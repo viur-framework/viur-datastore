@@ -184,22 +184,44 @@ def pythonPropToJson(v) -> dict:
 		return {
 			"timestampValue": v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 		}
-	elif isinstance(v, (Entity, dict)):
-		res = {
+	elif isinstance(v, Entity):
+		excludedProperties: set = set(v.exclude_from_indexes)
+		properties = {}
+		for dictKey, dictValue in v.items():
+			if isinstance(dictValue, list) and dictKey in excludedProperties:
+				# Lists cannot be not indexed (but each of its value can be). So we have to forward our not-indexed
+				# flag to our children. See https://github.com/googleapis/google-cloud-node/issues/2615.
+				resList = []
+				for value in dictValue:
+					resDict = pythonPropToJson(value)
+					resDict["excludeFromIndexes"] = True
+					resList.append(resDict)
+				properties[dictKey] = {
+					"arrayValue": {
+						"values": resList
+					}
+				}
+			else:
+				resDict = pythonPropToJson(dictValue)
+				if dictKey in excludedProperties:
+					resDict["excludeFromIndexes"] = True
+				properties[dictKey] = resDict
+		return {
 			"entityValue": {
 				"key": pythonPropToJson(v.key)["keyValue"] if isinstance(v, Entity) and v.key else None,
+				"properties": properties
+			}
+		}
+	elif isinstance(v, dict):
+		# We hande dicts separately as they don't have keys nor can keys be excluded from being indexed
+		return {
+			"entityValue": {
+				"key": None,
 				"properties": {
 					dictKey: pythonPropToJson(dictValue) for dictKey, dictValue in v.items()
 				}
-
 			}
 		}
-		if isinstance(v, Entity):
-			# We might have properties that should be excluded from being indexed
-			for excludedProperty in v.exclude_from_indexes:
-				if excludedProperty in res["entityValue"]["properties"]:
-					res["entityValue"]["properties"][excludedProperty]["excludeFromIndexes"] = True
-		return res
 	elif isinstance(v, list):
 		return {
 			"arrayValue": {
@@ -259,6 +281,9 @@ cdef inline object toEntityStructure(simdjsonElement v, boolean_type isInitial =
 		:param v: The simdJsonElement to parse
 		:param isInitial: If true, we'll return a dictionary of key->entity instead of a list of entities
 		:return: The corresponding python datatype.
+		
+		TODO: While working for now, this should probably refactored to return the parsed value and it's index flag
+			to avoid additional loops over objects.
 	"""
 	cdef simdjsonElementType et = v.type()
 	cdef simdjsonArray.iterator arrayIt, arrayItEnd
@@ -286,9 +311,26 @@ cdef inline object toEntityStructure(simdjsonElement v, boolean_type isInitial =
 					objIterEndInner = innerObject.end()
 					while objIterStartInner != objIterEndInner:
 						e[toPyStr(objIterStartInner.key())] = toEntityStructure(objIterStartInner.value())
-						tmpResult = objIterStartInner.value().at("excludeFromIndexes")
-						if tmpResult.error() == SUCCESS and tmpResult.value().get_bool():
-							excludeList.add(toPyStr(objIterStartInner.key()))
+						if objIterStartInner.value().at("arrayValue").error() == SUCCESS:
+							# We have to collect the non-indexed flag from the children of lists
+							arr = objIterStartInner.value().at("arrayValue").value().at("values").value().get_array()
+							arrayIt = arr.begin()
+							arrayItEnd = arr.end()
+							allExcluded = True
+							while arrayIt != arrayItEnd:
+								element = dereference(arrayIt)
+								tmpResult = element.at("excludeFromIndexes")
+								if tmpResult.error() != SUCCESS or not tmpResult.value().get_bool():
+									allExcluded = False
+									break
+								preincrement(arrayIt)
+							if allExcluded:
+								excludeList.add(toPyStr(objIterStartInner.key()))
+						else:
+							# For *all* other datatypes, we can simply check the dict it's defined in
+							tmpResult = objIterStartInner.value().at("excludeFromIndexes")
+							if tmpResult.error() == SUCCESS and tmpResult.value().get_bool():
+								excludeList.add(toPyStr(objIterStartInner.key()))
 						preincrement(objIterStartInner)
 				e.exclude_from_indexes = excludeList
 				return e
