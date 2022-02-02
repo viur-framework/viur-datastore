@@ -105,7 +105,7 @@ class TransactionTest(BaseTestClass):
 			return self.datastoreClient.get(self.datastoreClient.key(testKindName, "test-entity"))
 		entity = datastore.RunInTransaction(readTxn)
 		for k, v in datastoreSampleValues.items():
-			self.assertEqual(entity[k], v)
+			self.assertEqual(entity[k], viurTypeToGoogleType(v))
 
 
 	def test_delete_txn_success(self):

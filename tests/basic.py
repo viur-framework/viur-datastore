@@ -1,4 +1,4 @@
-import unittest, sys
+import unittest
 from viur import datastore
 from .base import BaseTestClass, datastoreSampleValues, viurTypeToGoogleType
 
@@ -51,7 +51,7 @@ class BasicFunctionTest(BaseTestClass):
 		# Also, double-check with the original google API
 		entity3 = self.datastoreClient.get(self.datastoreClient.key("test-kind", "test-entity"))
 		for k, v in datastoreSampleValues.items():
-			self.assertEqual(viurTypeToGoogleType(entity3[k]), v)
+			self.assertEqual(entity3[k], viurTypeToGoogleType(v))
 
 	def test_unindexed_list(self):
 		"""
