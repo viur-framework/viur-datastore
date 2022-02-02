@@ -5,11 +5,15 @@
 ### Changed
 
 ### Fixed
+
+### Removed
+
+## [0.4]
+
+### Fixed
 - exclude_from_index Flag on list properties
 - Building on MacOS again
 - Two conversion bugs in unittests
-
-### Removed
 
 ## [0.3]
 
