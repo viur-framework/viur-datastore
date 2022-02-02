@@ -53,6 +53,18 @@ class BasicFunctionTest(BaseTestClass):
 		for k, v in datastoreSampleValues.items():
 			self.assertEqual(entity3[k], viurTypeToGoogleType(v))
 
+	def test_empty_list(self):
+		"""
+			The indexed/unindexed flag is handled differently than all other datatypes.
+			Ensure, we can store an empty list.
+		"""
+		testList = []
+		entity = datastore.Entity(datastore.Key("test-kind", "test-entity"))
+		entity["testlist"] = testList
+		datastore.Put(entity)
+		entity = datastore.Get(datastore.Key("test-kind", "test-entity"))
+		self.assertEqual(entity["testlist"], testList)
+
 	def test_unindexed_list(self):
 		"""
 			The indexed/unindexed flag is handled differently than all other datatypes.

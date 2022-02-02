@@ -8,6 +8,11 @@
 
 ### Removed
 
+## [0.5]
+
+### Fixed
+- Deserializing empty lists
+
 ## [0.4]
 
 ### Fixed

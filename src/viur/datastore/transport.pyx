@@ -311,7 +311,8 @@ cdef inline object toEntityStructure(simdjsonElement v, boolean_type isInitial =
 					objIterEndInner = innerObject.end()
 					while objIterStartInner != objIterEndInner:
 						e[toPyStr(objIterStartInner.key())] = toEntityStructure(objIterStartInner.value())
-						if objIterStartInner.value().at("arrayValue").error() == SUCCESS:
+						if objIterStartInner.value().at("arrayValue").error() == SUCCESS and \
+							objIterStartInner.value().at("arrayValue").value().at("values").error() == SUCCESS:
 							# We have to collect the non-indexed flag from the children of lists
 							arr = objIterStartInner.value().at("arrayValue").value().at("values").value().get_array()
 							arrayIt = arr.begin()
