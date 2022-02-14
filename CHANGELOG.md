@@ -5,6 +5,7 @@
 ### Changed
 
 ### Fixed
+- Passing an empty list to delete() raising an exception
 
 ### Removed
 

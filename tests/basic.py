@@ -38,6 +38,22 @@ class BasicFunctionTest(BaseTestClass):
 		datastore.Delete(datastore.Key("test-kind", "test-entity"))
 		self.assertTrue(self.datastoreClient.get(self.datastoreClient.key("test-kind", "test-entity")) is None)
 
+	def test_delete_non_existant(self):
+		"""
+			Deleting a non-existing entity should not fail
+		"""
+		self.assertTrue(self.datastoreClient.get(self.datastoreClient.key("test-kind", "test-entity")) is None)
+		datastore.Delete(datastore.Key("test-kind", "test-entity"))
+		self.assertTrue(self.datastoreClient.get(self.datastoreClient.key("test-kind", "test-entity")) is None)
+
+	def test_delete_empty_list(self):
+		"""
+			Deleting a emty list of keys should just be ignored
+		"""
+		self.assertTrue(self.datastoreClient.get(self.datastoreClient.key("test-kind", "test-entity")) is None)
+		datastore.Delete([])
+		self.assertTrue(self.datastoreClient.get(self.datastoreClient.key("test-kind", "test-entity")) is None)
+
 	def test_datatypes(self):
 		"""
 			Ensure that we can store and retrieve all supported python types

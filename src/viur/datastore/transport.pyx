@@ -622,6 +622,8 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 	elif isinstance(keys, Entity):
 		keys = [keys.key]
 	keys = [(x.key if isinstance(x, Entity) else x) for x in keys]
+	if not keys:  # We got an empty list (probably a query that returned no results), noting to do here
+		return
 	postData = {
 		"mode": "NON_TRANSACTIONAL",  #"TRANSACTIONAL", #
 		"mutations": [
