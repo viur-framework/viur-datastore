@@ -85,7 +85,7 @@ cdef extern from "simdjson.h" namespace "simdjson::dom":
 		simdjsonArray get_array() except +
 		simdjsonObject get_object() except +
 		simdjsonElement at_key(const char *) except +  # Raises if key not found
-		simdjsonResult at(const char *)  # Same as at_key - sets result error code if key not found
+		simdjsonResult at_pointer(const char *)  # Same as at_key - sets result error code if key not found
 
 	cdef cppclass simdjsonParser "simdjson::dom::parser":
 		simdjsonParser()
@@ -260,7 +260,7 @@ cdef inline object parseKey(simdjsonElement v):
 	arrayItEnd = arr.end()
 	while arrayIt != arrayItEnd:
 		element = dereference(arrayIt)
-		if element.at("id").error() == SUCCESS:
+		if element.at_pointer("/id").error() == SUCCESS:
 			pathArgs.append(
 				(toPyStr(element.at_key("kind").get_string()), int(toPyStr(element.at_key("id").get_string())))
 			)
@@ -301,26 +301,25 @@ cdef inline object toEntityStructure(simdjsonElement v, boolean_type isInitial =
 			if strView.compare("entity") == 0 or strView.compare("entityValue") == 0:
 				e = Entity()
 				excludeList = set()
-				tmpResult = objIterStart.value().at("key")
+				tmpResult = objIterStart.value().at_pointer("/key")
 				if tmpResult.error() == SUCCESS:
 					e.key = parseKey(tmpResult.value())
-				tmpResult = objIterStart.value().at("properties")
+				tmpResult = objIterStart.value().at_pointer("/properties")
 				if tmpResult.error() == SUCCESS:
 					innerObject = tmpResult.value().get_object()
 					objIterStartInner = innerObject.begin()
 					objIterEndInner = innerObject.end()
 					while objIterStartInner != objIterEndInner:
 						e[toPyStr(objIterStartInner.key())] = toEntityStructure(objIterStartInner.value())
-						if objIterStartInner.value().at("arrayValue").error() == SUCCESS and \
-							objIterStartInner.value().at("arrayValue").value().at("values").error() == SUCCESS:
+						if objIterStartInner.value().at_pointer("/arrayValue/values").error() == SUCCESS:
 							# We have to collect the non-indexed flag from the children of lists
-							arr = objIterStartInner.value().at("arrayValue").value().at("values").value().get_array()
+							arr = objIterStartInner.value().at_pointer("/arrayValue/values").value().get_array()
 							arrayIt = arr.begin()
 							arrayItEnd = arr.end()
 							allExcluded = True
 							while arrayIt != arrayItEnd:
 								element = dereference(arrayIt)
-								tmpResult = element.at("excludeFromIndexes")
+								tmpResult = element.at_pointer("/excludeFromIndexes")
 								if tmpResult.error() != SUCCESS or not tmpResult.value().get_bool():
 									allExcluded = False
 									break
@@ -329,7 +328,7 @@ cdef inline object toEntityStructure(simdjsonElement v, boolean_type isInitial =
 								excludeList.add(toPyStr(objIterStartInner.key()))
 						else:
 							# For *all* other datatypes, we can simply check the dict it's defined in
-							tmpResult = objIterStartInner.value().at("excludeFromIndexes")
+							tmpResult = objIterStartInner.value().at_pointer("/excludeFromIndexes")
 							if tmpResult.error() == SUCCESS and tmpResult.value().get_bool():
 								excludeList.add(toPyStr(objIterStartInner.key()))
 						preincrement(objIterStartInner)
@@ -344,7 +343,7 @@ cdef inline object toEntityStructure(simdjsonElement v, boolean_type isInitial =
 			elif (strView.compare("integerValue") == 0):
 				return int(toPyStr(objIterStart.value().get_string()))
 			elif (strView.compare("arrayValue") == 0):
-				tmpResult = objIterStart.value().at("values")
+				tmpResult = objIterStart.value().at_pointer("/values")
 				if tmpResult.error() == SUCCESS:
 					return toEntityStructure(tmpResult.value())
 				else:
@@ -534,12 +533,12 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 			raise ValueError("Invalid status code received from Datastore API")
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
-		if element.at("batch").error() != SUCCESS:
+		if element.at_pointer("/batch").error() != SUCCESS:
 			print("INVALID RESPONSE RECEIVED")
 			pprint.pprint(json.loads(req.content))
 		#	res.update(toEntityStructure(element.at_key("batch"), isInitial=True))
 		element = element.at_key("batch")
-		if element.at("entityResults").error() == SUCCESS:
+		if element.at_pointer("/entityResults").error() == SUCCESS:
 			res.extend(toEntityStructure(element.at_key("entityResults"), isInitial=False))
 		else:  # No results received
 			break
@@ -593,9 +592,9 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 		assert req.status_code == 200
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
-		if (element.at("found").error() == SUCCESS):
+		if (element.at_pointer("/found").error() == SUCCESS):
 			res.update(toEntityStructure(element.at_key("found"), isInitial=True))
-		if (element.at("deferred").error() == SUCCESS):
+		if (element.at_pointer("/deferred").error() == SUCCESS):
 			keyList = toPythonStructure(element.at_key("deferred")) + keyList[300:]
 		else:
 			keyList = keyList[300:]
@@ -651,7 +650,7 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 	else:
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
-		if (element.at("mutationResults").error() != SUCCESS):
+		if (element.at_pointer("/mutationResults").error() != SUCCESS):
 			print(req.content)
 			raise ValueError("No mutation-results received")
 		arrayElem = element.at_key("mutationResults").get_array()
@@ -702,7 +701,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 	else:
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
-		if (element.at("mutationResults").error() != SUCCESS):
+		if (element.at_pointer("/mutationResults").error() != SUCCESS):
 			print(req.content)
 			raise ValueError("No mutation-results received")
 		arrayElem = element.at_key("mutationResults").get_array()
@@ -713,7 +712,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 		idx = 0
 		while arrayIt != arrayElem.end():
 			innerArrayElem = dereference(arrayIt)
-			if innerArrayElem.at("key").error() == SUCCESS:  # We got a new key assigned
+			if innerArrayElem.at_pointer("/key").error() == SUCCESS:  # We got a new key assigned
 				entities[idx].key = parseKey(innerArrayElem.at_key("key"))
 			entities[idx].version = toPyStr(innerArrayElem.at_key("version").get_string())
 			preincrement(arrayIt)
@@ -794,7 +793,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							raise ValueError("Invalid status code received from Datastore API")
 						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
-						if (element.at("mutationResults").error() != SUCCESS):
+						if (element.at_pointer("/mutationResults").error() != SUCCESS):
 							print(req.content)
 							raise ValueError("No mutation-results received")
 						arrayElem = element.at_key("mutationResults").get_array()
@@ -805,7 +804,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 						idx = 0
 						while arrayIt != arrayElem.end():
 							innerArrayElem = dereference(arrayIt)
-							if innerArrayElem.at("key").error() == SUCCESS:  # We got a new key assigned
+							if innerArrayElem.at_pointer("/key").error() == SUCCESS:  # We got a new key assigned
 								affectedEntity = currentTxn["affectedEntities"][idx]
 								if not affectedEntity:
 									print(req.content)
@@ -877,7 +876,7 @@ def AllocateIDs(keys: Union[Key, List[Key]]) -> Union[Key, List[Key]]:
 	assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 	element = parser.parse(data_ptr, pysize, 1)
 	res = []
-	if (element.at("keys").error() == SUCCESS):
+	if (element.at_pointer("/keys").error() == SUCCESS):
 		arrayElem = element.at_key("keys").get_array()
 		arrayIt = arrayElem.begin()
 		while arrayIt != arrayElem.end():

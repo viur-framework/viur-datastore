@@ -5,9 +5,14 @@
 ### Changed
 
 ### Fixed
-- Passing an empty list to delete() raising an exception
 
 ### Removed
+
+## [0.6]
+
+### Fixed
+- Passing an empty list to delete() raising an exception
+- Deprecation warnings regarding simdjson::element:at 
 
 ## [0.5]
 
