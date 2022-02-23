@@ -8,6 +8,11 @@
 
 ### Removed
 
+## [0.7]
+
+### Added
+- Export AllocateIDs by default (needed for the new import system in viur-core)
+
 ## [0.6]
 
 ### Fixed
