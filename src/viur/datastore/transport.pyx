@@ -654,7 +654,7 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 			print(req.content)
 			raise ValueError("No mutation-results received")
 		arrayElem = element.at_key("mutationResults").get_array()
-		if arrayElem.size() != len(keys):
+		if arrayElem.size() != abs(len(keys)):
 			print(req.content)
 			raise ValueError("Invalid number of mutation-results received")
 
@@ -705,7 +705,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			print(req.content)
 			raise ValueError("No mutation-results received")
 		arrayElem = element.at_key("mutationResults").get_array()
-		if arrayElem.size() != len(entities):
+		if arrayElem.size() != abs(len(entities)):
 			print(req.content)
 			raise ValueError("Invalid number of mutation-results received")
 		arrayIt = arrayElem.begin()
@@ -797,7 +797,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							print(req.content)
 							raise ValueError("No mutation-results received")
 						arrayElem = element.at_key("mutationResults").get_array()
-						if arrayElem.size() != len(currentTxn["affectedEntities"]):
+						if arrayElem.size() != abs(len(currentTxn["affectedEntities"])):
 							print(req.content)
 							raise ValueError("Invalid number of mutation-results received")
 						arrayIt = arrayElem.begin()

@@ -5,10 +5,15 @@
 ### Changed
 
 ### Fixed
-- Missing imports & typos in query.py
 
 ### Removed
 
+
+## [0.8]
+
+### Fixed
+- Missing imports & typos in query.py
+- Compiler and build warnings
 
 ## [0.7]
 
