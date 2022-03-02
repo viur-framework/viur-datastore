@@ -4,8 +4,9 @@ import logging
 from typing import Union, Tuple, List, Dict, Any, Callable, Set, Optional
 from functools import partial
 from copy import deepcopy
-from viur.datastore.types import QueryDefinition, DATASTORE_BASE_TYPES, Entity, currentDbAccessLog, SortOrder, SkelListRef
-from viur.datastore.transport import runSingleFilter
+from viur.datastore.types import QueryDefinition, DATASTORE_BASE_TYPES, Entity, currentDbAccessLog, SortOrder, \
+	SkelListRef, KEY_SPECIAL_PROPERTY
+from viur.datastore.transport import runSingleFilter, Get
 from viur.datastore.utils import IsInTransaction
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 
@@ -468,7 +469,7 @@ class Query(object):
 
 	def _fixKind(self, resultList: List[Entity]) -> List[Entity]:
 		"""
-			Jump to parentKind if nessesary (used in realtions)
+			Jump to parentKind if necessary (used in relations)
 		"""
 		resultList = list(resultList)
 		if resultList and resultList[0].key.kind != self.origKind and resultList[0].key.parent and \
@@ -498,7 +499,7 @@ class Query(object):
 			another property is provided
 		"""
 		if self.queries is None:
-			return None
+			return []
 
 		if self._fulltextQueryString:
 			if IsInTransaction():

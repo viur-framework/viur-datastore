@@ -5,8 +5,10 @@
 ### Changed
 
 ### Fixed
+- Missing imports & typos in query.py
 
 ### Removed
+
 
 ## [0.7]
 
