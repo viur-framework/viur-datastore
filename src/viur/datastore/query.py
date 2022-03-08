@@ -8,10 +8,8 @@ from viur.datastore.types import QueryDefinition, DATASTORE_BASE_TYPES, Entity, 
 	SkelListRef, KEY_SPECIAL_PROPERTY
 from viur.datastore.transport import runSingleFilter, Get
 from viur.datastore.utils import IsInTransaction
+from viur.datastore.config import SkeletonInstanceRef, traceQueries
 from base64 import urlsafe_b64encode, urlsafe_b64decode
-
-traceQueries = False  #FIXME
-SkeletonInstanceRef = None  #FIXME
 
 
 def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
@@ -499,6 +497,8 @@ class Query(object):
 			another property is provided
 		"""
 		if self.queries is None:
+			if traceQueries:
+				logging.debug("Query on %s aborted as being not satisfiable" % self.kind)
 			return []
 
 		if self._fulltextQueryString:
@@ -531,16 +531,6 @@ class Query(object):
 				res = self._mergeMultiQueryResults(res)
 		else:  # We have just one single query
 			res = self._fixKind(self._runSingleFilterQuery(self.queries, limit if limit != -1 else self.queries.limit))
-		if traceQueries:
-			# orders = self.queries.orders
-			filters = self.queries
-			distinctOn = ""  # "" distinct on %s" % str(self._distinct) if self._distinct else ""
-			if self.kind != self.origKind:
-				logging.debug("Queried %s via %s with filter %s and orders %s. Returned %s results" % (
-					self.origKind, self.kind, filters, distinctOn, len(res)))
-			else:
-				logging.debug("Queried %s with filter %s and orders %s. Returned %s results" % (
-					self.kind, filters, distinctOn, len(res)))
 		if res:
 			self._lastEntry = res[-1]
 		return res

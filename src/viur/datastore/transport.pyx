@@ -7,6 +7,7 @@ import google.auth
 import requests
 from libcpp cimport bool as boolean_type
 from viur.datastore.types import currentTransaction, Entity, Key, QueryDefinition
+from viur.datastore.config import traceQueries
 from cython.operator cimport preincrement, dereference
 from libc.stdint cimport int64_t, uint64_t
 from datetime import datetime, timezone
@@ -546,6 +547,12 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 		if toPyStr(element.at_key("moreResults").get_string()) != "NOT_FINISHED" or len(res) == limit:
 			break
 	queryDefinition.currentCursor = internalStartCursor
+	if traceQueries:
+		orders = queryDefinition.orders
+		filters = queryDefinition.filters
+		distinctOn = " distinct on %s" % str(queryDefinition.distinct) if queryDefinition.distinct else ""
+		logging.debug("Queried %s with filter %s and orders %s%s. Returned %s results" % (
+				queryDefinition.kind, filters, orders, distinctOn, len(res)))
 	if flipResults:
 		return res[::-1]
 	return res

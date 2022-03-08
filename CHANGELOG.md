@@ -3,8 +3,10 @@
 ### Added
 
 ### Changed
+- Moved config variables from query.py to separate config file
 
 ### Fixed
+- traceQueries now logging all queries
 
 ### Removed
 
