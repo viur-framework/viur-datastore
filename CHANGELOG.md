@@ -9,6 +9,7 @@
 - traceQueries now logging all queries
 
 ### Removed
+- Implicit import from viur-core. config.SkeletonInstanceRef has now to be set from outside.
 
 
 ## [0.8]

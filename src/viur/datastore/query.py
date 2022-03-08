@@ -8,7 +8,7 @@ from viur.datastore.types import QueryDefinition, DATASTORE_BASE_TYPES, Entity, 
 	SkelListRef, KEY_SPECIAL_PROPERTY
 from viur.datastore.transport import runSingleFilter, Get
 from viur.datastore.utils import IsInTransaction
-from viur.datastore.config import SkeletonInstanceRef, traceQueries
+from viur.datastore.config import conf
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 
 
@@ -497,7 +497,7 @@ class Query(object):
 			another property is provided
 		"""
 		if self.queries is None:
-			if traceQueries:
+			if conf["traceQueries"]:
 				logging.debug("Query on %s aborted as being not satisfiable" % self.kind)
 			return []
 
@@ -555,10 +555,7 @@ class Query(object):
 			:raises: :exc:`BadQueryError` if an IN filter in combination with a sort order on
 				another property is provided
 		"""
-		global SkeletonInstanceRef
-		if not SkeletonInstanceRef:
-			from viur.core.skeleton import SkeletonInstance as SkeletonInstanceRefOrig
-			SkeletonInstanceRef = SkeletonInstanceRefOrig
+		assert conf["SkeletonInstanceRef"] is not None, "conf['SkeletonInstanceRef'] has not been set!"
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		# limit = limit if limit != -1 else self._limit
@@ -571,7 +568,7 @@ class Query(object):
 			return None
 		res = SkelListRef(self.srcSkel)
 		for e in dbRes:
-			skelInstance = SkeletonInstanceRef(self.srcSkel.skeletonCls, clonedBoneMap=self.srcSkel.boneMap)
+			skelInstance = conf["SkeletonInstanceRef"](self.srcSkel.skeletonCls, clonedBoneMap=self.srcSkel.boneMap)
 			skelInstance.dbEntity = e
 			res.append(skelInstance)
 		res.getCursor = lambda: self.getCursor()
