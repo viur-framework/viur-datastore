@@ -181,3 +181,17 @@ class QueryValuesTest(BaseTestClass):
 		outerEntry["innerEntry"] = innerEntry
 		datastore.Put(outerEntry)
 		self.assertEqual(datastore.Query(testKindName).getEntry(), outerEntry)
+
+	def test_key_in_filter(self):
+		# Ensure, we can use a __in__ filter on keys
+		outerKeyList = []
+		innerKeyList = []
+		for idx in range(1, 4):
+			outerEntry = datastore.Entity(datastore.Key(testKindName))
+			innerEntry = datastore.Entity(datastore.Key(testKindName, idx))
+			outerEntry["innerEntry"] = innerEntry
+			datastore.Put(outerEntry)
+			outerKeyList.append(outerEntry.key)
+			innerKeyList.append(innerEntry.key)
+		self.assertEqual(len(datastore.Query(testKindName).filter("__key__ IN", outerKeyList).run()), 3)
+		self.assertEqual(len(datastore.Query(testKindName).filter("innerEntry.__key__ IN", innerKeyList).run()), 3)
