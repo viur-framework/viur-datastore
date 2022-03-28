@@ -265,11 +265,15 @@ cdef inline object parseKey(simdjsonElement v):
 			pathArgs.append(
 				(toPyStr(element.at_key("kind").get_string()), int(toPyStr(element.at_key("id").get_string())))
 			)
-		else:
-			# We don't expect to read incomplete keys from the datastore :)
+		elif element.at_pointer("/name").error() == SUCCESS:
 			pathArgs.append(
 				(toPyStr(element.at_key("kind").get_string()), toPyStr(element.at_key("name").get_string()))
 			)
+		else:
+			# We read an incomplete/null key from the datastore. This is likely a bug.
+			# Can happen if you manually created a key like datastore.Key("kind", 0).
+			logging.error("We read an incomplete/null key from the datastore. This is likely a bug!")
+			pathArgs.append((toPyStr(element.at_key("kind").get_string()), 0))
 		preincrement(arrayIt)
 	key = None
 	for pathElem in pathArgs:

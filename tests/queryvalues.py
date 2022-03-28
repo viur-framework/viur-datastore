@@ -172,3 +172,12 @@ class QueryValuesTest(BaseTestClass):
 		datastore.Put(e)
 		self.assertTrue(len(datastore.Query(testKindName).filter("dateVal =", now + timedelta(minutes=1)).filter("dateVal =", now + timedelta(minutes=2)).run(100)) == 1)
 		self.assertTrue(len(datastore.Query(testKindName).filter("dateVal =", now + timedelta(minutes=1)).filter("dateVal =", now + timedelta(minutes=12)).run(100)) == 0)
+
+	def test_botched_inner_key(self):
+		# It's possible to assign broken/partial keys to inner entries (in which case we'll read it as an
+		# incomplete key). However, id=0 keys work fine on outer entries.
+		outerEntry = datastore.Entity(datastore.Key(testKindName))
+		innerEntry = datastore.Entity(datastore.Key(testKindName, 0))  # This key will be read back as incomplete
+		outerEntry["innerEntry"] = innerEntry
+		datastore.Put(outerEntry)
+		self.assertEqual(datastore.Query(testKindName).getEntry(), outerEntry)
