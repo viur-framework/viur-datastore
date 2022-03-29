@@ -3,10 +3,19 @@
 ### Added
 
 ### Changed
+
+### Fixed
+
+### Removed
+
+
+## [0.9]
+
+### Changed
 - Moved config variables from query.py to separate config file
 
 ### Fixed
-- traceQueries now logging all queries
+- traceQueries now logs all queries
 
 ### Removed
 - Implicit import from viur-core. config.SkeletonInstanceRef has now to be set from outside.
