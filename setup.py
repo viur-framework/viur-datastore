@@ -4,7 +4,7 @@ from Cython.Distutils import build_ext
 
 setup(
 	name='viur-datastore',
-	version="0.9",
+	version="1.0",
 	author="Tobias Steinrücken",
 	author_email="ts@mausbrand.de",
 	description="A faster replacement for google-cloud-datastore",

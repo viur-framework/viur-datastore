@@ -9,6 +9,15 @@
 ### Removed
 
 
+## [1.0]
+
+### Added
+- unit-test for in-filter on \_\_keys\_\_
+
+### Fixed
+- Fixed handling of incomplete/null keys
+
+
 ## [0.9]
 
 ### Changed
@@ -18,7 +27,7 @@
 - traceQueries now logs all queries
 
 ### Removed
-- Implicit import from viur-core. config.SkeletonInstanceRef has now to be set from outside.
+- Implicit import from viur-core.config.SkeletonInstanceRef has now to be set from outside.
 
 
 ## [0.8]
