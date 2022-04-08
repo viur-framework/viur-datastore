@@ -6,7 +6,7 @@ import base64
 import google.auth
 import requests
 from libcpp cimport bool as boolean_type
-from viur.datastore.types import currentTransaction, Entity, Key, QueryDefinition
+from viur.datastore.types import currentTransaction, Entity, Key, QueryDefinition, currentDbAccessLog
 from viur.datastore.config import conf
 from cython.operator cimport preincrement, dereference
 from libc.stdint cimport int64_t, uint64_t
@@ -575,6 +575,9 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	if isinstance(keys, Key):
 		keys = [keys]
 		isMulti = False
+	accessLog = currentDbAccessLog.get()
+	if isinstance(accessLog, set):
+		accessLog.update(set(keys))
 	keyList = [
 		{
 			"partitionId": {
@@ -632,6 +635,9 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 	elif isinstance(keys, Entity):
 		keys = [keys.key]
 	keys = [(x.key if isinstance(x, Entity) else x) for x in keys]
+	accessLog = currentDbAccessLog.get()
+	if isinstance(accessLog, set):
+		accessLog.update(set(keys))
 	if not keys:  # We got an empty list (probably a query that returned no results), noting to do here
 		return
 	postData = {
@@ -686,6 +692,9 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 	cdef simdjsonArray.iterator arrayIt
 	if isinstance(entities, Entity):
 		entities = [entities]
+	accessLog = currentDbAccessLog.get()
+	if isinstance(accessLog, set):
+		accessLog.update(set([x.key for x in entities if not x.key.is_partial]))
 	postData = {
 		"mode": "NON_TRANSACTIONAL",  # Always NON_TRANSACTIONAL; if we're inside a transaction we'll abort below
 		"mutations": [

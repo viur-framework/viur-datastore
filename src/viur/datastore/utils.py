@@ -1,6 +1,6 @@
-from viur.datastore.types import Entity, Key, currentTransaction
+from viur.datastore.types import Entity, Key, currentTransaction, currentDbAccessLog
 from viur.datastore.transport import Get, Put, RunInTransaction
-from typing import Union, List
+from typing import Union, List, Set, Optional
 import binascii
 from datetime import datetime
 
@@ -124,3 +124,31 @@ def acquireTransactionSuccessMarker() -> str:
 		Put(e)
 		txn["viurTxnMarkerSet"] = True
 	return marker
+
+def startDataAccessLog() -> Set[Union[Key, str]]:
+	"""
+		Clears our internal access log (which keeps track of which entries have been accessed in the current
+		request). The old set of accessed entries is returned so that it can be restored with
+		:func:`server.db.popAccessData` in case of nested caching. You must call popAccessData afterwards, otherwise
+		we'll continue to log all entries accessed in subsequent request on the same thread!
+		:return: Set of old accessed entries
+	"""
+	old = currentDbAccessLog.get(set())
+	currentDbAccessLog.set(set())
+	return old
+
+
+def endDataAccessLog(outerAccessLog: Optional[Set[Union[Key, str]]] = None) -> Optional[Set[Union[Key, str]]]:
+	"""
+		Retrieves the set of entries accessed so far. To start the log, call :func:`viur.datastore.startAccessDataLog`.
+		If you called :func:`server.db.startAccessDataLog` before, you can re-apply the old log using
+		the outerAccessLog param. Otherwise, it will disable the access log.
+		:param outerAccessLog: State of your log returned by :func:`server.db.startAccessDataLog`
+		:return: Set of entries accessed
+	"""
+	res = currentDbAccessLog.get()
+	if isinstance(outerAccessLog, set):
+		currentDbAccessLog.set((outerAccessLog or set()).union(res))
+	else:
+		currentDbAccessLog.set(None)
+	return res

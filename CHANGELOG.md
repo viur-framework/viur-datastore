@@ -1,6 +1,7 @@
 ## [develop] - Current development version
 
 ### Added
+- Re-added startDataAccessLog and endDataAccessLog functions
 
 ### Changed
 
