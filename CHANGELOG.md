@@ -1,13 +1,21 @@
 ## [develop] - Current development version
 
 ### Added
-- Re-added startDataAccessLog and endDataAccessLog functions
 
 ### Changed
 
 ### Fixed
 
 ### Removed
+
+
+## [1.1]
+
+### Added
+- Re-added startDataAccessLog and endDataAccessLog functions
+
+### Changed
+- Replaced Beta classifier with Production/Stable
 
 
 ## [1.0]
