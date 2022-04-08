@@ -18,7 +18,7 @@ setup(
 	ext_modules=cythonize([Extension("viur.datastore.transport", ["src/viur/datastore/transport.pyx"], language="c++", extra_compile_args=["-std=c++11"])]),
 	classifiers=[
 		"Programming Language :: Python :: 3",
-		"Development Status :: 4 - Beta",
+		"Development Status :: 5 - Production/Stable",
 		"Intended Audience :: Developers",
 		"Topic :: Database :: Front-Ends",
 	],
