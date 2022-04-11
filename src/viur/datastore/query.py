@@ -294,8 +294,8 @@ class Query(object):
 			if isinstance(order, str):
 				order = (order, SortOrder.Ascending)
 
-			assert isinstance(order[0], str) and isinstance(order[1], SortOrder), \
-				f"Invalid ordering {order}, it has to be a tuple. Try: `(\"{order}\", SortOrder.Ascending)`"
+			if not (isinstance(order[0], str) and isinstance(order[1], SortOrder)):
+				raise TypeError(f"Invalid ordering {order}, it has to be a tuple. Try: `(\"{order}\", SortOrder.Ascending)`")
 
 			orders.append(order)
 
