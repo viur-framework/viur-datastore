@@ -8,6 +8,30 @@
 
 ### Removed
 
+## [1.2.1]
+
+### Added
+
+### Changed
+
+- Much more detailed README.md how to use and develop this library
+
+### Fixed
+
+### Removed
+
+## [1.2.0]
+
+### Added
+
+### Changed
+
+- Switched to 'semver' versioning scheme
+- order specifiers are now a list of tuples with old style compatibility
+
+### Fixed
+
+### Removed
 
 ## [1.1]
 

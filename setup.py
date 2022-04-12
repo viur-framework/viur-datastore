@@ -4,9 +4,11 @@ from Cython.Distutils import build_ext
 
 setup(
 	name='viur-datastore',
-	version="1.1",
+	version="1.2.1",
 	author="Tobias Steinrücken",
 	author_email="ts@mausbrand.de",
+	maintainer="Stefan Kögl",
+	maintainer_email="devs@viur.dev",
 	description="A faster replacement for google-cloud-datastore",
 	long_description=open("README.md", "r").read(),
 	long_description_content_type="text/markdown",
