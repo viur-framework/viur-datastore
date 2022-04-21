@@ -30,6 +30,17 @@ class QueryCustomFunctionsTest(BaseTestClass):
 		qry.setCursor(startCursor, endCursor)
 		res = [x["intVal"] for x in qry.run(100)]
 		self.assertEqual(res, [-5, -4, -3, -2, -1])  # Same 5 Values due to end-cursor
+		# we have to test that we eventually get a None cursor after we run over all 20 entries
+		qry = datastore.Query(testKindName).order(("intVal", datastore.SortOrder.Ascending))
+		qry.setCursor(endCursor)
+		res = [x["intVal"] for x in qry.run(20)]  # request more than we inserted...
+		self.assertEqual(res, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+		lastCursor = qry.getCursor()
+		qry = datastore.Query(testKindName).order(("intVal", datastore.SortOrder.Ascending))
+		qry.setCursor(lastCursor)
+		res = [x["intVal"] for x in qry.run(10)]  # should be empty by now
+		self.assertEqual(res, [])  # should be None now
+		self.assertEqual(qry.getCursor(), None)  # should be None now
 
 	def test_query_sort_orders(self):
 		# Check our 4 sort-orders (Ascending, Descending, InvertedAscending and InvertedDescending)

@@ -8,6 +8,20 @@
 
 ### Removed
 
+## [1.2.2]
+
+### Added
+
+.gitignore file
+
+### Changed
+
+### Fixed
+
+- Now handles setting of fetch cursor to None more efficiently
+
+### Removed
+
 ## [1.2.1]
 
 ### Added

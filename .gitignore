@@ -1,0 +1,8 @@
+﻿.idea
+__pycache__
+*.cpp
+build
+dist
+src/viur/datastore/transport.cpp
+src/viur/datastore/*.so
+*.egg-info
