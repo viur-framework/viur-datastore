@@ -12,6 +12,8 @@
 
 ### Added
 
+.gitignore file
+
 ### Changed
 
 ### Fixed
