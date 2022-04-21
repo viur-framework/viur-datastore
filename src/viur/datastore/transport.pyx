@@ -238,7 +238,7 @@ def pythonPropToJson(v) -> dict:
 cdef inline object toPyStr(stringView strView):
 	"""
 		Converts a cpp stringview to a python str object
-		:param strView: The stringview object 
+		:param strView: The stringview object
 		:return: The corresponding python string object
 	"""
 	return PyUnicode_FromStringAndSize(
@@ -248,9 +248,9 @@ cdef inline object toPyStr(stringView strView):
 
 cdef inline object parseKey(simdjsonElement v):
 	"""
-		Parses a simdJsonObject representing a key to a datastore.Key instance.	
-	
-		:param v: The simdJsonElement containing the key 
+		Parses a simdJsonObject representing a key to a datastore.Key instance.
+
+		:param v: The simdJsonElement containing the key
 		:return: The corresponding datastore.Key instance
 	"""
 	cdef simdjsonArray arr
@@ -286,7 +286,7 @@ cdef inline object toEntityStructure(simdjsonElement v, boolean_type isInitial =
 		:param v: The simdJsonElement to parse
 		:param isInitial: If true, we'll return a dictionary of key->entity instead of a list of entities
 		:return: The corresponding python datatype.
-		
+
 		TODO: While working for now, this should probably refactored to return the parsed value and it's index flag
 			to avoid additional loops over objects.
 	"""
@@ -547,7 +547,10 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 			res.extend(toEntityStructure(element.at_key("entityResults"), isInitial=False))
 		else:  # No results received
 			break
-		internalStartCursor = toPyStr(element.at_key("endCursor").get_string())
+		if toPyStr(element.at_key("moreResults").get_string()) == "NO_MORE_RESULTS":
+			internalStartCursor = None
+		else:
+			internalStartCursor = toPyStr(element.at_key("endCursor").get_string())
 		if toPyStr(element.at_key("moreResults").get_string()) != "NOT_FINISHED" or len(res) == limit:
 			break
 	queryDefinition.currentCursor = internalStartCursor
