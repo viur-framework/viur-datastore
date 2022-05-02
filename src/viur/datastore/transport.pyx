@@ -533,9 +533,11 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 		)
 		if req.status_code != 200:
 			print("INVALID STATUS CODE RECEIVED")
-			print(req.content)
-			pprint.pprint(json.loads(req.content))
+			content=json.loads(req.content)
+			print(content)
+			print(content["error"]["message"])
 			raise ValueError("Invalid status code received from Datastore API")
+
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if element.at_pointer("/batch").error() != SUCCESS:
@@ -664,8 +666,9 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 	)
 	if req.status_code != 200:
 		print("INVALID STATUS CODE RECEIVED")
-		print(req.content)
-		pprint.pprint(json.loads(req.content))
+		content = json.loads(req.content)
+		print(content)
+		print(content["error"]["message"])
 		raise ValueError("Invalid status code received from Datastore API")
 	else:
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
@@ -718,8 +721,9 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 	)
 	if req.status_code != 200:
 		print("INVALID STATUS CODE RECEIVED")
-		print(req.content)
-		pprint.pprint(json.loads(req.content))
+		content = json.loads(req.content)
+		print(content)
+		print(content["error"]["message"])
 		raise ValueError("Invalid status code received from Datastore API")
 	else:
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
@@ -783,8 +787,9 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 			)
 			if req.status_code != 200:
 				print("INVALID STATUS CODE RECEIVED")
-				print(req.content)
-				pprint.pprint(json.loads(req.content))
+				content = json.loads(req.content)
+				print(content)
+				print(content["error"]["message"])
 				raise ValueError("Invalid status code received from Datastore API")
 			else:
 				txnKey = json.loads(req.content)["transaction"]
@@ -811,8 +816,9 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							if req.status_code == 409:  # We got a collision, in which case we can retry
 								raise Collision()
 							print("INVALID STATUS CODE RECEIVED")
-							print(req.content)
-							pprint.pprint(json.loads(req.content))
+							content = json.loads(req.content)
+							print(content)
+							print(content["error"]["message"])
 							raise ValueError("Invalid status code received from Datastore API")
 						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
