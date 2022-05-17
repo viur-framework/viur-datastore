@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 import logging
 from typing import Union, Tuple, List, Dict, Any, Callable, Set, Optional
@@ -493,7 +492,7 @@ class Query(object):
 			return list(Get([x.key.parent for x in resultList]))
 		return resultList
 
-	def run(self, limit=-1, **kwargs) -> List[Entity]:
+	def run(self, limit: int = -1) -> List[Entity]:
 		"""
 			Run this query.
 
@@ -504,8 +503,6 @@ class Query(object):
 
 			:param limit: Limits the query to the defined maximum entities.
 			:type limit: int
-
-			:param kwargs: Any keyword arguments accepted by datastore_query.QueryOptions().
 
 			:returns: The list of found entities
 
@@ -553,7 +550,7 @@ class Query(object):
 			self._lastEntry = res[-1]
 		return res
 
-	def fetch(self, limit: int=-1, **kwargs) -> List['SkeletonInstanceRef']:
+	def fetch(self, limit: int = -1) -> List['SkeletonInstanceRef']:
 		"""
 			Run this query and fetch results as :class:`server.skeleton.SkelList`.
 
@@ -605,9 +602,6 @@ class Query(object):
 			:warning: If iterating over a large result set, make sure the query supports cursors. \
 			Otherwise, it might not return all results as the AppEngine doesn't maintain the view \
 			for a query for more than ~30 seconds.
-
-			:param keysOnly: If the query should be used to retrieve entity keys only.
-			:type keysOnly: bool
 		"""
 		if self.queries is None:  # Noting to pull here
 			raise StopIteration()
@@ -650,13 +644,9 @@ class Query(object):
 		self.srcSkel.setEntity(res)
 		return self.srcSkel
 
-	def clone(self, keysOnly=None) -> 'Query':
+	def clone(self) -> 'Query':
 		"""
 			Returns a deep copy of the current query.
-
-			:param keysOnly: If the query should be used to retrieve entity keys only\
-			in the new query.
-			:type keysOnly: bool
 
 			:returns: The cloned query.
 			:rtype: server.db.Query
