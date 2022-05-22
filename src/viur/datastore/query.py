@@ -502,7 +502,6 @@ class Query(object):
 			should be used.
 
 			:param limit: Limits the query to the defined maximum entities.
-			:type limit: int
 
 			:returns: The list of found entities
 
@@ -649,7 +648,6 @@ class Query(object):
 			Returns a deep copy of the current query.
 
 			:returns: The cloned query.
-			:rtype: server.db.Query
 		"""
 		res = Query(self.getKind(), self.srcSkel)
 		res.kind = self.kind
