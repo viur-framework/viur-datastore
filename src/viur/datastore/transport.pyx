@@ -540,8 +540,8 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 		)
 		if req.status_code != 200:
 			errorData = json.loads(req.content)["error"]
-			print("INVALID STATUS CODE RECEIVED")
-			pprint.pprint(errorData)
+			if errorData["status"] in conf["verbose_error_codes"]:
+				pprint.pprint(errorData)
 			raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
@@ -670,9 +670,9 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		data=json.dumps(postData).encode("UTF-8"),
 	)
 	if req.status_code != 200:
-		print("INVALID STATUS CODE RECEIVED")
 		errorData = json.loads(req.content)["error"]
-		# pprint.pprint(errorResult)
+		if errorData["status"] in conf["verbose_error_codes"]:
+			pprint.pprint(errorData)
 		raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
 	else:
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
@@ -788,8 +788,8 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 			)
 			if req.status_code != 200:
 				errorData = json.loads(req.content)["error"]
-				print("INVALID STATUS CODE RECEIVED")
-				pprint.pprint(errorData)
+				if errorData["status"] in conf["verbose_error_codes"]:
+					pprint.pprint(errorData)
 				raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
 			else:
 				txnKey = json.loads(req.content)["transaction"]
@@ -814,8 +814,8 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 						)
 						if req.status_code != 200:
 							errorData = json.loads(req.content)["error"]
-							print("INVALID STATUS CODE RECEIVED")
-							pprint.pprint(errorData)
+							if errorData["status"] in conf["verbose_error_codes"]:
+								pprint.pprint(errorData)
 							raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
 						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)

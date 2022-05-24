@@ -1,6 +1,14 @@
+"""This file provides viur.datastore exception/error hierarchy.
+
+We are mapping the error status of the rest api to that hierarchy in
+CANONICAL_ERROR_CODE_MAP.
+"""
+
+
 class ViurDatastoreError(ValueError):
 	"""Base Exception class for viur-datastore errors.
 
+	Can be used as a catch all Exception/Error.
 	"""
 	pass
 
@@ -139,7 +147,7 @@ class WrongNumberMutationResultsReceived(ViurDatastoreError):
 CANONICAL_ERROR_CODE_MAP = {
 	"ABORTED": AbortedError,
 	"ALREADY_EXISTS": AlreadyExistsError,
-	"DEADLINE_EXSCEEDED": DeadlineExceededError,
+	"DEADLINE_EXCEEDED": DeadlineExceededError,
 	"FAILED_PRECONDITION": FailedPreconditionError,
 	"INTERNAL": InternalError,
 	"INVALID_ARGUMENT": InvalidArgumentError,
