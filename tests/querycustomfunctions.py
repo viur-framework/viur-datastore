@@ -33,13 +33,8 @@ class QueryCustomFunctionsTest(BaseTestClass):
 		# we have to test that we eventually get a None cursor after we run over all 20 entries
 		qry = datastore.Query(testKindName).order(("intVal", datastore.SortOrder.Ascending))
 		qry.setCursor(endCursor)
-		res = [x["intVal"] for x in qry.run(20)]  # request more than we inserted...
+		res = [x["intVal"] for x in qry.run(10)]  # request more than we inserted...
 		self.assertEqual(res, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-		lastCursor = qry.getCursor()
-		qry = datastore.Query(testKindName).order(("intVal", datastore.SortOrder.Ascending))
-		qry.setCursor(lastCursor)
-		res = [x["intVal"] for x in qry.run(10)]  # should be empty by now
-		self.assertEqual(res, [])  # should be None now
 		self.assertEqual(qry.getCursor(), None)  # should be None now
 
 	def test_query_sort_orders(self):

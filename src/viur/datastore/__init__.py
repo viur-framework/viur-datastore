@@ -7,6 +7,12 @@ from viur.datastore.transport import Get, Put, Delete, RunInTransaction, Allocat
 from viur.datastore.config import conf as config
 from viur.datastore.errors import *
 
+import logging
+# silencing requests' debugging
+logging.getLogger("requests").setLevel(logging.ERROR)
+logging.getLogger("urllib3").setLevel(logging.ERROR)
+
+
 __all__ = [
 	"KEY_SPECIAL_PROPERTY",
 	"DATASTORE_BASE_TYPES",

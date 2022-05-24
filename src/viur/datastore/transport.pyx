@@ -21,8 +21,8 @@ import logging
 from time import sleep
 import sys
 
-logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+
+# logger = logging.getLogger(__name__)
 
 
 ## Start of CPP-Imports required for the simdjson->python bridge
@@ -816,7 +816,6 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							errorData = json.loads(req.content)["error"]
 							print("INVALID STATUS CODE RECEIVED")
 							pprint.pprint(errorData)
-							logger.debug("errorData: %r", errorData)
 							raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
 						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
@@ -847,7 +846,6 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 				finally:  # Ensure, currentTransaction is always set back to none
 					currentTransaction.set(None)
 		except AlreadyExistsError:  # Got a collision; retry the entire transaction
-			logging.warning("Transaction collision, retrying...")
 			sleep(exponential_backoff ** 2)
 	raise AlreadyExistsError() # If we made it here, all tries are exhausted
 
