@@ -19,6 +19,10 @@ from typing import Union, List, Any
 from requests.exceptions import ConnectionError as RequestsConnectionError
 import logging
 from time import sleep
+import sys
+
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 ## Start of CPP-Imports required for the simdjson->python bridge
@@ -535,7 +539,7 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 			data=json.dumps(postData).encode("UTF-8"),
 		)
 		if req.status_code != 200:
-			errorData = json.loads(req.content)
+			errorData = json.loads(req.content)["error"]
 			print("INVALID STATUS CODE RECEIVED")
 			pprint.pprint(errorData)
 			raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
@@ -667,7 +671,7 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 	)
 	if req.status_code != 200:
 		print("INVALID STATUS CODE RECEIVED")
-		errorData = json.loads(req.content)
+		errorData = json.loads(req.content)["error"]
 		# pprint.pprint(errorResult)
 		raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
 	else:
@@ -783,7 +787,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 				data=json.dumps(postData).encode("UTF-8"),
 			)
 			if req.status_code != 200:
-				errorData = json.loads(req.content)
+				errorData = json.loads(req.content)["error"]
 				print("INVALID STATUS CODE RECEIVED")
 				pprint.pprint(errorData)
 				raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
@@ -809,9 +813,10 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							data=json.dumps(postData).encode("UTF-8"),
 						)
 						if req.status_code != 200:
-							errorData = json.loads(req.content)
+							errorData = json.loads(req.content)["error"]
 							print("INVALID STATUS CODE RECEIVED")
 							pprint.pprint(errorData)
+							logger.debug("errorData: %r", errorData)
 							raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
 						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
