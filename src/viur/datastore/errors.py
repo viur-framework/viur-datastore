@@ -57,7 +57,10 @@ class DeadlineExceededError(ViurDatastoreError):
 
 
 class FailedPreconditionError(ViurDatastoreError):
-	"""Indicates that a precondition for the request was not met. The message field in the error response provides information about the precondition that failed. One possible cause is running a query that requires an index not yet defined.
+	"""Indicates that a precondition for the request was not met.
+
+	The message field in the error response provides information about the precondition that failed.
+	One possible cause is running a query that requires an index not yet defined.
 
 	Do not retry without fixing the problem.
 
@@ -76,7 +79,9 @@ class InternalError(RuntimeError):
 
 
 class InvalidArgumentError(ViurDatastoreError):
-	"""Indicates that a request parameter has an invalid value. The message field in the error response provides information as to which value was invalid.
+	"""Indicates that a request parameter has an invalid value.
+
+	The message field in the error response provides information as to which value was invalid.
 
 	status code 400
 
@@ -110,7 +115,8 @@ class ResourceExhaustedError(ViurDatastoreError):
 
 	status code 429
 
-	Verify that you did not exceed your project quota. If you exceeded a project quota, do not retry without fixing the problem.
+	Verify that you did not exceed your project quota. If you exceeded a project quota,
+	do not retry without fixing the problem.
 
 	Otherwise, retry with exponential backoff.
 	"""

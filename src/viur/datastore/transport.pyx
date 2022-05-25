@@ -749,7 +749,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 	cdef simdjsonElement element, innerArrayElem
 	cdef simdjsonArray arrayElem
 	cdef simdjsonArray.iterator arrayIt
-	for exponential_backoff in range(0, 3):
+	for exponential_backoff in range(1, 4):
 		try:
 			oldTxn = currentTransaction.get()
 			allowOverriding = kwargs.pop("__allowOverriding__", None)
@@ -822,7 +822,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 				finally:  # Ensure, currentTransaction is always set back to none
 					currentTransaction.set(None)
 		except CollisionError:  # Got a collision; retry the entire transaction
-			sleep(exponential_backoff ** 2)
+			sleep(2 ** exponential_backoff)
 	raise CollisionError("All retries are exhausted for this transaction") # If we made it here, all tries are exhausted
 
 
