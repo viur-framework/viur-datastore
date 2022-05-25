@@ -21,7 +21,7 @@ class IncrementThread(Thread):
 			try:
 				datastore.RunInTransaction(incrementTxn)
 				sleep(random())
-			except datastore.errors.AlreadyExistsError:
+			except datastore.errors.CollisionError:
 				continue
 			self.successCount += 1
 

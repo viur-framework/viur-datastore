@@ -40,7 +40,7 @@ __all__ = [
 	"endDataAccessLog",
 	"ViurDatastoreError",
 	"AbortedError",
-	"AlreadyExistsError",
+	"CollisionError",
 	"DeadlineExceededError",
 	"FailedPreconditionError",
 	"InternalError",
@@ -50,5 +50,6 @@ __all__ = [
 	"ResourceExhaustedError",
 	"UnauthenticatedError",
 	"UnavailableError",
+	"NoMutationResultsError",
 	"isViurDatastoreRequestOk",
 ]

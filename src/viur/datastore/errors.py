@@ -32,7 +32,7 @@ class AbortedError(ViurDatastoreError):
 	pass
 
 
-class AlreadyExistsError(ViurDatastoreError):
+class CollisionError(ViurDatastoreError):
 	"""Indicates that the request attempted to insert an entity that already exists.
 
 	This error/exception was problabely catched at most 3 times with exponential backoff.
@@ -137,11 +137,19 @@ class UnavailableError(ViurDatastoreError):
 	pass
 
 
+class NoMutationResultsError(ViurDatastoreError):
+	"""This error indicates that it's either an internal bug in viur-datastore or the datastore itself went bust
+
+	This is an 'internal' error which is not backed by an error code provided by google datastore.
+	"""
+	pass
+
+
 """This maps the indicator from error object status field to one of
 our ViurDatastore Exception classes"""
 CANONICAL_ERROR_CODE_MAP = {
 	"ABORTED": AbortedError,
-	"ALREADY_EXISTS": AlreadyExistsError,
+	"ALREADY_EXISTS": CollisionError,
 	"DEADLINE_EXCEEDED": DeadlineExceededError,
 	"FAILED_PRECONDITION": FailedPreconditionError,
 	"INTERNAL": InternalError,

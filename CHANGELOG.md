@@ -19,6 +19,8 @@
 
 ### Changed
 
+- The exception 'Collision' was renamed to 'CollisionError'. This change must be also be applied in viur-core.
+
 ### Fixed
 
 ### Removed

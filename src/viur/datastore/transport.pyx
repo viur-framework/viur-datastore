@@ -669,8 +669,8 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
-			print(req.content)
-			raise NoMutationResultsReceived("No mutation-results received")
+			pprint(req.content)
+			raise NoMutationResultsError("No mutation results received")
 		arrayElem = element.at_key("mutationResults").get_array()
 		if arrayElem.size() != abs(len(keys)):
 			print(req.content)
@@ -723,8 +723,8 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			raise ValueError("No mutation-results received")
 		arrayElem = element.at_key("mutationResults").get_array()
 		if arrayElem.size() != abs(len(entities)):
-			print(req.content)
-			raise ValueError("Invalid number of mutation-results received")
+			pprint(req.content)
+			raise NoMutationResultsError("Invalid number of mutation-results received")
 		arrayIt = arrayElem.begin()
 		idx = 0
 		while arrayIt != arrayElem.end():
@@ -799,8 +799,8 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
 						if (element.at_pointer("/mutationResults").error() != SUCCESS):
-							print(req.content)
-							raise ViurDatastoreError("No mutation-results received")
+							pprint(req.content)
+							raise NoMutationResultsError("No mutation-results received")
 						arrayElem = element.at_key("mutationResults").get_array()
 						if arrayElem.size() != abs(len(currentTxn["affectedEntities"])):
 							print(req.content)
@@ -824,9 +824,9 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 						return res
 				finally:  # Ensure, currentTransaction is always set back to none
 					currentTransaction.set(None)
-		except AlreadyExistsError:  # Got a collision; retry the entire transaction
+		except CollisionError:  # Got a collision; retry the entire transaction
 			sleep(exponential_backoff ** 2)
-	raise AlreadyExistsError() # If we made it here, all tries are exhausted
+	raise CollisionError("All retries are exhausted for this transaction") # If we made it here, all tries are exhausted
 
 
 def _rollbackTxn(txnKey: str):
