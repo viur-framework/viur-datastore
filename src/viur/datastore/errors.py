@@ -3,6 +3,10 @@
 We are mapping the error status of the rest api to that hierarchy in
 CANONICAL_ERROR_CODE_MAP.
 """
+import json
+from pprint import pprint
+
+from viur.datastore.config import conf
 
 
 class ViurDatastoreError(ValueError):
@@ -132,18 +136,8 @@ class UnavailableError(ViurDatastoreError):
 	pass
 
 
-class NoMutationResultsReceived(ViurDatastoreError):
-	"""Found no result in mutations
-
-	"""
-	pass
-
-
-class WrongNumberMutationResultsReceived(ViurDatastoreError):
-	"""Result in mutations does not match expected number of entries"""
-	pass
-
-
+"""This maps the indicator from error object status field to one of
+our ViurDatastore Exception classes"""
 CANONICAL_ERROR_CODE_MAP = {
 	"ABORTED": AbortedError,
 	"ALREADY_EXISTS": AlreadyExistsError,
@@ -157,3 +151,15 @@ CANONICAL_ERROR_CODE_MAP = {
 	"UNAUTHENTICATED": UnauthenticatedError,
 	"UNAVAILABLE": UnavailableError
 }
+
+
+def handleViurDatastoreRequestError(req):
+	"""This small helper function raise an appropriate exception class for errors happened talking to google datastore
+
+	Also it pretty prints the message for selected errors on stderr/stdout. Look at viur.datastore.config.conf
+	verbose_error_codes field.
+	"""
+	error_data = json.loads(req.content)["error"]
+	if error_data["status"] in conf["verbose_error_codes"]:
+		pprint(error_data)
+	raise CANONICAL_ERROR_CODE_MAP.get(error_data["status"], ViurDatastoreError)(error_data["message"])

@@ -50,6 +50,5 @@ __all__ = [
 	"ResourceExhaustedError",
 	"UnauthenticatedError",
 	"UnavailableError",
-	"NoMutationResultsReceived",
-	"WrongNumberMutationResultsReceived",
+	"handleViurDatastoreRequestError",
 ]
