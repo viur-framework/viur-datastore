@@ -6,7 +6,7 @@ setup(
 	name='viur-datastore',
 	version="1.3.0rc1",
 	author="Tobias Steinrücken, Stefan Kögl",
-	author_email="ts@mausbrand.de",
+	author_email="devs@viur.dev",
 	maintainer="Stefan Kögl",
 	maintainer_email="devs@viur.dev",
 	description="A faster replacement for google-cloud-datastore",
