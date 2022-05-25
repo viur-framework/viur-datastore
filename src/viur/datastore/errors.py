@@ -6,6 +6,7 @@ CANONICAL_ERROR_CODE_MAP.
 import json
 from pprint import pprint
 
+import requests
 from viur.datastore.config import conf
 
 
@@ -153,13 +154,17 @@ CANONICAL_ERROR_CODE_MAP = {
 }
 
 
-def handleViurDatastoreRequestError(req):
-	"""This small helper function raise an appropriate exception class for errors happened talking to google datastore
+def isViurDatastoreRequestOk(req: requests.Request) -> bool:
+	"""This small helper function raise an appropriate exception class for errors happened talking to google datastore.
+
+	It returns True if everything is ok, otherwise raises.
 
 	Also it pretty prints the message for selected errors on stderr/stdout. Look at viur.datastore.config.conf
 	verbose_error_codes field.
 	"""
-	error_data = json.loads(req.content)["error"]
-	if error_data["status"] in conf["verbose_error_codes"]:
-		pprint(error_data)
-	raise CANONICAL_ERROR_CODE_MAP.get(error_data["status"], ViurDatastoreError)(error_data["message"])
+	if req.status_code != 200:
+		error_data = json.loads(req.content)["error"]
+		if error_data["status"] in conf["verbose_error_codes"]:
+			pprint(error_data)
+		raise CANONICAL_ERROR_CODE_MAP.get(error_data["status"], ViurDatastoreError)(error_data["message"])
+	return True

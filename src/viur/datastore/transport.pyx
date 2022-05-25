@@ -537,8 +537,8 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 			url="https://datastore.googleapis.com/v1/projects/%s:runQuery" % projectID,
 			data=json.dumps(postData).encode("UTF-8"),
 		)
-		if req.status_code != 200:
-			handleViurDatastoreRequestError(req)
+
+		isViurDatastoreRequestOk(req)
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if element.at_pointer("/batch").error() != SUCCESS:
@@ -665,9 +665,7 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
-	if req.status_code != 200:
-		handleViurDatastoreRequestError(req)
-	else:
+	if isViurDatastoreRequestOk(req):
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
@@ -716,9 +714,8 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
-	if req.status_code != 200:
-		handleViurDatastoreRequestError(req)
-	else:
+
+	if isViurDatastoreRequestOk(req):
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
@@ -776,9 +773,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 				url="https://datastore.googleapis.com/v1/projects/%s:beginTransaction" % projectID,
 				data=json.dumps(postData).encode("UTF-8"),
 			)
-			if req.status_code != 200:
-				handleViurDatastoreRequestError(req)
-			else:
+			if isViurDatastoreRequestOk(req):
 				txnKey = json.loads(req.content)["transaction"]
 				try:
 					currentTxn = {"key": txnKey, "mutations": [], "affectedEntities": []}
@@ -799,8 +794,8 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
 							data=json.dumps(postData).encode("UTF-8"),
 						)
-						if req.status_code != 200:
-							handleViurDatastoreRequestError(req)
+
+						isViurDatastoreRequestOk(req)
 						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
 						if (element.at_pointer("/mutationResults").error() != SUCCESS):

@@ -50,5 +50,5 @@ __all__ = [
 	"ResourceExhaustedError",
 	"UnauthenticatedError",
 	"UnavailableError",
-	"handleViurDatastoreRequestError",
+	"isViurDatastoreRequestOk",
 ]
