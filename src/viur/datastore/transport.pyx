@@ -25,6 +25,13 @@ import sys
 # logger = logging.getLogger(__name__)
 
 
+def handleRequestError(req):
+	errorData = json.loads(req.content)["error"]
+	if errorData["status"] in conf["verbose_error_codes"]:
+		pprint.pprint(errorData)
+	raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
+
+
 ## Start of CPP-Imports required for the simdjson->python bridge
 
 cdef extern from "Python.h":
@@ -539,10 +546,7 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 			data=json.dumps(postData).encode("UTF-8"),
 		)
 		if req.status_code != 200:
-			errorData = json.loads(req.content)["error"]
-			if errorData["status"] in conf["verbose_error_codes"]:
-				pprint.pprint(errorData)
-			raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
+			handleRequestError(req)
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if element.at_pointer("/batch").error() != SUCCESS:
@@ -670,10 +674,7 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		data=json.dumps(postData).encode("UTF-8"),
 	)
 	if req.status_code != 200:
-		errorData = json.loads(req.content)["error"]
-		if errorData["status"] in conf["verbose_error_codes"]:
-			pprint.pprint(errorData)
-		raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
+		handleRequestError(req)
 	else:
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
@@ -724,10 +725,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 		data=json.dumps(postData).encode("UTF-8"),
 	)
 	if req.status_code != 200:
-		print("INVALID STATUS CODE RECEIVED")
-		print(req.content)
-		pprint.pprint(json.loads(req.content))
-		raise ValueError("Invalid status code received from Datastore API")
+		handleRequestError(req)
 	else:
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
@@ -787,10 +785,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 				data=json.dumps(postData).encode("UTF-8"),
 			)
 			if req.status_code != 200:
-				errorData = json.loads(req.content)["error"]
-				if errorData["status"] in conf["verbose_error_codes"]:
-					pprint.pprint(errorData)
-				raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
+				handleRequestError(req)
 			else:
 				txnKey = json.loads(req.content)["transaction"]
 				try:
@@ -813,10 +808,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							data=json.dumps(postData).encode("UTF-8"),
 						)
 						if req.status_code != 200:
-							errorData = json.loads(req.content)["error"]
-							if errorData["status"] in conf["verbose_error_codes"]:
-								pprint.pprint(errorData)
-							raise CANONICAL_ERROR_CODE_MAP[errorData["status"]](errorData["message"])
+							handleRequestError(req)
 						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
 						if (element.at_pointer("/mutationResults").error() != SUCCESS):
