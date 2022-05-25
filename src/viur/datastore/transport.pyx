@@ -538,7 +538,7 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 			data=json.dumps(postData).encode("UTF-8"),
 		)
 
-		isViurDatastoreRequestOk(req)
+		is_viur_datastore_request_ok(req)
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if element.at_pointer("/batch").error() != SUCCESS:
@@ -665,7 +665,7 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
-	if isViurDatastoreRequestOk(req):
+	if is_viur_datastore_request_ok(req):
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
@@ -715,7 +715,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 		data=json.dumps(postData).encode("UTF-8"),
 	)
 
-	if isViurDatastoreRequestOk(req):
+	if is_viur_datastore_request_ok(req):
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
@@ -773,7 +773,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 				url="https://datastore.googleapis.com/v1/projects/%s:beginTransaction" % projectID,
 				data=json.dumps(postData).encode("UTF-8"),
 			)
-			if isViurDatastoreRequestOk(req):
+			if is_viur_datastore_request_ok(req):
 				txnKey = json.loads(req.content)["transaction"]
 				try:
 					currentTxn = {"key": txnKey, "mutations": [], "affectedEntities": []}
@@ -795,7 +795,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							data=json.dumps(postData).encode("UTF-8"),
 						)
 
-						isViurDatastoreRequestOk(req)
+						is_viur_datastore_request_ok(req)
 						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
 						if (element.at_pointer("/mutationResults").error() != SUCCESS):

@@ -162,7 +162,7 @@ CANONICAL_ERROR_CODE_MAP = {
 }
 
 
-def isViurDatastoreRequestOk(req: requests.Request) -> bool:
+def is_viur_datastore_request_ok(req: requests.Request) -> bool:
 	"""This small helper function raise an appropriate exception class for errors happened talking to google datastore.
 
 	It returns True if everything is ok, otherwise raises.
