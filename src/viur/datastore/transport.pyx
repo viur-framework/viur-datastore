@@ -19,10 +19,7 @@ from typing import Union, List, Any
 from requests.exceptions import ConnectionError as RequestsConnectionError
 import logging
 from time import sleep
-import sys
 
-
-# logger = logging.getLogger(__name__)
 
 ## Start of CPP-Imports required for the simdjson->python bridge
 
