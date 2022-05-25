@@ -156,8 +156,12 @@ class Query(object):
 			logging.exception(e)
 			self.queries = None
 			return self
+		startCursor = endCursor = None
 		if "cursor" in filters and filters["cursor"] and filters["cursor"].lower() != "none":
-			self.setCursor(filters["cursor"])
+			startCursor = filters["cursor"]
+		if "endcursor" in filters and filters["endcursor"] and filters["endcursor"].lower() != "none":
+			endCursor = filters["endcursor"]
+		self.setCursor(startCursor, endCursor)
 		if "limit" in filters and str(filters["limit"]).isdigit() and int(filters["limit"]) > 0 and int(
 				filters["limit"]) <= 100:
 			self.limit(int(filters["limit"]))
