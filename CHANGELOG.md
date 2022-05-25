@@ -8,6 +8,23 @@
 
 ### Removed
 
+## [1.3.0]
+
+### Added
+
+- Using exponential backoff for retrying commit
+- Added complete ViurException hierarchy using the status error field and a mapping to our destinct errors.
+- silencing out logging output from requests and urllib3
+- introducing a config var 'verbose_error_codes' for selecting which error status should trigger a verbose message output on stdout/stderr 
+
+### Changed
+
+- The exception 'Collision' was renamed to 'CollisionError'. This change must be also be applied in viur-core.
+
+### Fixed
+
+### Removed
+
 ## [1.2.2]
 
 ### Added

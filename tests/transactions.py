@@ -9,7 +9,7 @@ from random import random
 """
 
 class IncrementThread(Thread):
-	
+
 	def run(self):
 		self.successCount = 0
 		for x in range(0, 10):
@@ -21,7 +21,7 @@ class IncrementThread(Thread):
 			try:
 				datastore.RunInTransaction(incrementTxn)
 				sleep(random())
-			except datastore.Collision:
+			except datastore.errors.CollisionError:
 				continue
 			self.successCount += 1
 

@@ -8,4 +8,7 @@ conf = {
 
 	# A reference to the skeleton container of ViUR. Unless set, fetch() and getSkel() will fail
 	"SkeletonInstanceRef": None,
+	# an allow list which error codes should trigger a verbose message output on stderr/stdout
+	# take a look in viur.datastore.errors.CANONICAL_ERROR_CODE_MAP keys and the Exceptions for reference
+	"verbose_error_codes": {"FAILED_PRECONDITION", "UNAVAILABLE"}
 }

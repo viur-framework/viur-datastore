@@ -8,6 +8,7 @@ import requests
 from libcpp cimport bool as boolean_type
 from viur.datastore.types import currentTransaction, Entity, Key, QueryDefinition, currentDbAccessLog
 from viur.datastore.config import conf
+from viur.datastore.errors import *
 from cython.operator cimport preincrement, dereference
 from libc.stdint cimport int64_t, uint64_t
 from datetime import datetime, timezone
@@ -17,6 +18,8 @@ from base64 import b64decode, b64encode
 from typing import Union, List, Any
 from requests.exceptions import ConnectionError as RequestsConnectionError
 import logging
+from time import sleep
+
 
 ## Start of CPP-Imports required for the simdjson->python bridge
 
@@ -531,11 +534,8 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 			url="https://datastore.googleapis.com/v1/projects/%s:runQuery" % projectID,
 			data=json.dumps(postData).encode("UTF-8"),
 		)
-		if req.status_code != 200:
-			print("INVALID STATUS CODE RECEIVED")
-			print(req.content)
-			pprint.pprint(json.loads(req.content))
-			raise ValueError("Invalid status code received from Datastore API")
+
+		is_viur_datastore_request_ok(req)
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if element.at_pointer("/batch").error() != SUCCESS:
@@ -662,17 +662,12 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
-	if req.status_code != 200:
-		print("INVALID STATUS CODE RECEIVED")
-		print(req.content)
-		pprint.pprint(json.loads(req.content))
-		raise ValueError("Invalid status code received from Datastore API")
-	else:
+	if is_viur_datastore_request_ok(req):
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
-			print(req.content)
-			raise ValueError("No mutation-results received")
+			pprint(req.content)
+			raise NoMutationResultsError("No mutation results received")
 		arrayElem = element.at_key("mutationResults").get_array()
 		if arrayElem.size() != abs(len(keys)):
 			print(req.content)
@@ -716,12 +711,8 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
-	if req.status_code != 200:
-		print("INVALID STATUS CODE RECEIVED")
-		print(req.content)
-		pprint.pprint(json.loads(req.content))
-		raise ValueError("Invalid status code received from Datastore API")
-	else:
+
+	if is_viur_datastore_request_ok(req):
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
@@ -729,8 +720,8 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			raise ValueError("No mutation-results received")
 		arrayElem = element.at_key("mutationResults").get_array()
 		if arrayElem.size() != abs(len(entities)):
-			print(req.content)
-			raise ValueError("Invalid number of mutation-results received")
+			pprint(req.content)
+			raise NoMutationResultsError("Invalid number of mutation-results received")
 		arrayIt = arrayElem.begin()
 		idx = 0
 		while arrayIt != arrayElem.end():
@@ -742,8 +733,6 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			idx += 1
 	return entities
 
-class Collision(Exception):
-	pass
 
 def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 	"""
@@ -760,7 +749,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 	cdef simdjsonElement element, innerArrayElem
 	cdef simdjsonArray arrayElem
 	cdef simdjsonArray.iterator arrayIt
-	for _ in range(0, 3):
+	for exponential_backoff in range(1, 4):
 		try:
 			oldTxn = currentTransaction.get()
 			allowOverriding = kwargs.pop("__allowOverriding__", None)
@@ -781,12 +770,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 				url="https://datastore.googleapis.com/v1/projects/%s:beginTransaction" % projectID,
 				data=json.dumps(postData).encode("UTF-8"),
 			)
-			if req.status_code != 200:
-				print("INVALID STATUS CODE RECEIVED")
-				print(req.content)
-				pprint.pprint(json.loads(req.content))
-				raise ValueError("Invalid status code received from Datastore API")
-			else:
+			if is_viur_datastore_request_ok(req):
 				txnKey = json.loads(req.content)["transaction"]
 				try:
 					currentTxn = {"key": txnKey, "mutations": [], "affectedEntities": []}
@@ -807,22 +791,17 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
 							data=json.dumps(postData).encode("UTF-8"),
 						)
-						if req.status_code != 200:
-							if req.status_code == 409:  # We got a collision, in which case we can retry
-								raise Collision()
-							print("INVALID STATUS CODE RECEIVED")
-							print(req.content)
-							pprint.pprint(json.loads(req.content))
-							raise ValueError("Invalid status code received from Datastore API")
+
+						is_viur_datastore_request_ok(req)
 						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
 						if (element.at_pointer("/mutationResults").error() != SUCCESS):
-							print(req.content)
-							raise ValueError("No mutation-results received")
+							pprint(req.content)
+							raise NoMutationResultsError("No mutation-results received")
 						arrayElem = element.at_key("mutationResults").get_array()
 						if arrayElem.size() != abs(len(currentTxn["affectedEntities"])):
 							print(req.content)
-							raise ValueError("Invalid number of mutation-results received")
+							raise ViurDatastoreError("Invalid number of mutation-results received")
 						arrayIt = arrayElem.begin()
 						idx = 0
 						while arrayIt != arrayElem.end():
@@ -831,7 +810,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 								affectedEntity = currentTxn["affectedEntities"][idx]
 								if not affectedEntity:
 									print(req.content)
-									raise ValueError("Received an unexpected key-update")
+									raise ViurDatastoreError("Received an unexpected key-update")
 								affectedEntity.key = parseKey(innerArrayElem.at_key("key"))
 								affectedEntity.version = toPyStr(innerArrayElem.at_key("version").get_string())
 							preincrement(arrayIt)
@@ -842,9 +821,10 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 						return res
 				finally:  # Ensure, currentTransaction is always set back to none
 					currentTransaction.set(None)
-		except Collision:  # Got a collision; retry the entire transaction
-			logging.warning("Transaction collision, retrying...")
-	raise Collision() # If we made it here, all tries are exhausted
+		except CollisionError:  # Got a collision; retry the entire transaction
+			sleep(2 ** exponential_backoff)
+	raise CollisionError("All retries are exhausted for this transaction") # If we made it here, all tries are exhausted
+
 
 def _rollbackTxn(txnKey: str):
 	"""
