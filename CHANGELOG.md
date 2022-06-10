@@ -1,6 +1,7 @@
 ## [develop] - Current development version
 
 ### Added
+- Allow setting the endCursor from outside
 
 ### Changed
 
