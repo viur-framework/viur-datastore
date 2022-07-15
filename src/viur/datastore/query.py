@@ -577,7 +577,7 @@ class Query(object):
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		# limit = limit if limit != -1 else self._limit
-		if limit != -1 and not (0 < limit < 100):
+		if limit != -1 and not (0 < limit <= 100):
 			logging.error(("Limit", limit))
 			raise NotImplementedError(
 				"This query is not limited! You must specify an upper bound using limit() between 1 and 100")
