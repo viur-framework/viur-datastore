@@ -1,9 +1,22 @@
 ## [develop] - Current development version
 
 ### Added
-- Allow setting the endCursor from outside
 
 ### Changed
+
+### Fixed
+
+### Removed
+
+## [1.3.1]
+
+### Added
+
+- Allow setting the endCursor from outside (#8)
+
+### Changed
+
+- Include 100 in limit range in fetch() (#10)
 
 ### Fixed
 
