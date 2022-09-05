@@ -55,6 +55,7 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
 def keyHelper(inKey: Union[Key, str, int], targetKind: str,
 			  additionalAllowedKinds: Union[None, List[str]] = None) -> Key:
 	if isinstance(inKey, str):
+		inKey = inKey.strip()
 		try:
 			decodedKey = normalizeKey(Key.from_legacy_urlsafe(inKey))
 		except:
