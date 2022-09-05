@@ -53,14 +53,14 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
 
 
 def keyHelper(inKey: Union[Key, str, int], targetKind: str,
-			  additionalAllowdKinds: Union[None, List[str]] = None) -> Key:
+			  additionalAllowedKinds: Union[None, List[str]] = None) -> Key:
 	if isinstance(inKey, str):
 		try:
 			decodedKey = normalizeKey(Key.from_legacy_urlsafe(inKey))
 		except:
 			decodedKey = None
 		if decodedKey:  # If it did decode, don't try any further
-			if decodedKey.kind != targetKind and (not additionalAllowdKinds or inKey.kind not in additionalAllowdKinds):
+			if decodedKey.kind != targetKind and (not additionalAllowedKinds or decodedKey.kind not in additionalAllowedKinds):
 				raise ValueError("Kin1d mismatch: %s != %s" % (decodedKey.kind, targetKind))
 			return decodedKey
 		if inKey.isdigit():
@@ -69,8 +69,8 @@ def keyHelper(inKey: Union[Key, str, int], targetKind: str,
 	elif isinstance(inKey, int):
 		return Key(targetKind, inKey)
 	elif isinstance(inKey, Key):
-		if inKey.kind != targetKind and (not additionalAllowdKinds or inKey.kind not in additionalAllowdKinds):
-			raise ValueError("Kin1d mismatch: %s != %s (%s)" % (inKey.kind, targetKind, additionalAllowdKinds))
+		if inKey.kind != targetKind and (not additionalAllowedKinds or inKey.kind not in additionalAllowedKinds):
+			raise ValueError("Kin1d mismatch: %s != %s (%s)" % (inKey.kind, targetKind, additionalAllowedKinds))
 		return inKey
 	else:
 		raise ValueError("Unknown key type %r" % type(inKey))
