@@ -8,6 +8,13 @@
 
 ### Removed
 
+## [1.3.2]
+
+### Fixed
+
+- typo: additionalAllowdKinds > additionalAllowedKinds
+- fix: str keys now work with different targetKinds
+
 ## [1.3.1]
 
 ### Added
