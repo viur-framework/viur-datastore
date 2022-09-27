@@ -8,6 +8,18 @@
 
 ### Removed
 
+## [1.3.3] - Current development version
+
+### Added
+
+### Changed
+
+### Fixed
+
+- Fixed multi-querys (#15)
+
+### Removed
+
 ## [1.3.1]
 
 ### Added
