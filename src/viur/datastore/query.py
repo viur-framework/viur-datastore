@@ -161,7 +161,8 @@ class Query(object):
 			startCursor = filters["cursor"]
 		if "endcursor" in filters and filters["endcursor"] and filters["endcursor"].lower() != "none":
 			endCursor = filters["endcursor"]
-		self.setCursor(startCursor, endCursor)
+		if startCursor or endCursor:
+			self.setCursor(startCursor, endCursor)
 		if "limit" in filters and str(filters["limit"]).isdigit() and int(filters["limit"]) > 0 and int(
 				filters["limit"]) <= 100:
 			self.limit(int(filters["limit"]))
