@@ -84,6 +84,9 @@ class Key:
 		"""
 		return self.id or self.name
 
+	def __str__(self):
+		return self.to_legacy_urlsafe().decode("ASCII")
+
 	def __repr__(self):
 		return "<viur.datastore.Key %s/%s, parent=%s>" % (self.kind, self.id_or_name, self.parent)
 

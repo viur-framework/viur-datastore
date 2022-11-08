@@ -106,7 +106,8 @@ def encodeKey(key: Key) -> str:
 	"""
 		Return the given key encoded as string (mimicking the old str() behaviour of keys)
 	"""
-	return key.to_legacy_urlsafe().decode("ASCII")
+	# todo: Should we make a deprecation warning when this function is used?
+	return str(key)
 
 def acquireTransactionSuccessMarker() -> str:
 	"""
