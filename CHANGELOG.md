@@ -8,6 +8,22 @@
 
 ### Removed
 
+## [1.3.3]
+
+### Added
+
+- Provide Key.__str__() function again (#17)
+
+### Changed
+
+- Specified 3.9 as min python version in setup
+
+### Fixed
+
+- Fixed multi-querys (#15)
+
+### Removed
+
 ## [1.3.1]
 
 ### Added

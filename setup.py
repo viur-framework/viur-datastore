@@ -4,7 +4,7 @@ from Cython.Distutils import build_ext
 
 setup(
 	name='viur-datastore',
-	version="1.3.1",
+	version="1.3.3",
 	author="Tobias Steinrücken, Stefan Kögl",
 	author_email="devs@viur.dev",
 	maintainer="Stefan Kögl",
@@ -15,7 +15,7 @@ setup(
 	url="https://github.com/viur-framework/viur-datastore",
 	packages=['viur.datastore'],
 	package_dir={'': 'src'},
-	python_requires=">=3.7",
+	python_requires=">=3.9",
 	cmdclass={'build_ext': build_ext},
 	ext_modules=cythonize([Extension("viur.datastore.transport", ["src/viur/datastore/transport.pyx"], language="c++", extra_compile_args=["-std=c++11"])]),
 	classifiers=[
