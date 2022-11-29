@@ -338,9 +338,15 @@ class Query(object):
 			:param endCursor: The end cursor for this query.
 			:returns: Returns the query itself for chaining.
 		"""
-		assert isinstance(self.queries, QueryDefinition)
-		self.queries.startCursor = urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII") if startCursor else None
-		self.queries.endCursor = urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII") if endCursor else None
+		if isinstance(self.queries, list):
+			for query in self.queries:
+				assert isinstance(query, QueryDefinition)
+				query.startCursor = urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
+				query.endCursor = urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
+		else:
+			assert isinstance(self.queries, QueryDefinition)
+			self.queries.startCursor = urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
+			self.queries.endCursor = urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
 		return self
 
 
