@@ -341,12 +341,16 @@ class Query(object):
 		if isinstance(self.queries, list):
 			for query in self.queries:
 				assert isinstance(query, QueryDefinition)
-				query.startCursor = urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
-				query.endCursor = urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
+				if startCursor:
+					query.startCursor = urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
+				if endCursor:
+					query.endCursor = urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
 		else:
 			assert isinstance(self.queries, QueryDefinition)
-			self.queries.startCursor = urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
-			self.queries.endCursor = urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
+			if startCursor:
+				self.queries.startCursor = urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
+			if endCursor:
+				self.queries.endCursor = urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
 		return self
 
 
