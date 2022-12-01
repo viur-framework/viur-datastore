@@ -111,3 +111,16 @@ class QueryCustomFunctionsTest(BaseTestClass):
 		qry.setOrderHook(orderHook)
 		qry.order(("intVal", datastore.SortOrder.Ascending))
 		self.assertEqual([x["test.intVal"] for x in qry.run(5)], [0, 1, 2, 3, 4])
+
+	def test_query_get_orders(self):
+		# Test the get_orders metod
+		for x in range(10):  # Create 19 entities to test with
+			e = datastore.Entity(datastore.Key(testKindName))
+			e["intVal"] = x
+			datastore.Put(e)
+		qry = datastore.Query(testKindName).order(("intVal", datastore.SortOrder.Ascending))
+		qry.run(1)
+		self.assertEqual(qry.get_orders(), [('intVal', datastore.SortOrder.Ascending)])
+		qry = datastore.Query(testKindName)
+		qry.run(1)
+		self.assertEqual(qry.get_orders(), None) #Should be None now
