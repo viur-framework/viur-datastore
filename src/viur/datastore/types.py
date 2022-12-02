@@ -43,7 +43,7 @@ class SkelListRef(list):
 		:vartype cursor: str
 	"""
 
-	__slots__ = ["baseSkel", "getCursor", "customQueryInfo", "renderPreparation"]
+	__slots__ = ["baseSkel", "getCursor","get_orders", "customQueryInfo", "renderPreparation"]
 
 	def __init__(self, baseSkel=None):
 		"""
@@ -52,6 +52,7 @@ class SkelListRef(list):
 		super(SkelListRef, self).__init__()
 		self.baseSkel = baseSkel or {}
 		self.getCursor = lambda: None
+		self.get_orders = lambda: None
 		self.renderPreparation = None
 		self.customQueryInfo = {}
 

@@ -401,6 +401,20 @@ class Query(object):
 			q = self.queries[0]
 		return urlsafe_b64encode(q.currentCursor.encode("ASCII")).decode("ASCII") if q.currentCursor else None
 
+	def get_orders(self):
+		"""
+			Get the orders from this query.
+
+			:returns: The orders form this query as a list if there is no orders set it returns None
+		"""
+		if isinstance(self.queries, QueryDefinition):
+			q = self.queries
+		elif isinstance(self.queries, list):
+			q = self.queries[0]
+		else:
+			raise f"self.queries can only be from type 'QueryDefinition' or a list of 'QueryDefinition'"
+		return q.orders if q.orders else None
+
 	def getKind(self) -> str:
 		"""
 			:returns: the *current* kind of this query. This may not be the kind this query has been constructed with
@@ -601,6 +615,7 @@ class Query(object):
 			skelInstance.dbEntity = e
 			res.append(skelInstance)
 		res.getCursor = lambda: self.getCursor()
+		res.get_orders = lambda: self.get_orders()
 		return res
 
 	def iter(self):
