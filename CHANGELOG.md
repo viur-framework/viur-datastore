@@ -2,11 +2,31 @@
 
 ### Added
 
+- Add get_orders and test (#19)
+
 ### Changed
+
+- Specified 3.10 as min python version in setup
 
 ### Fixed
 
+- Fix multiple query (#18)
+
 ### Removed
+
+## [1.3.4]
+
+### Added
+
+- Provide Key.__str__() function again (#17)
+
+### Changed
+
+- Specified 3.9 as min python version in setup
+
+### Fixed
+
+- Fixed multi-querys (#15)
 
 ## [1.3.3]
 
