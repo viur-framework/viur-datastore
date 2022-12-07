@@ -10,5 +10,17 @@ conf = {
 	"SkeletonInstanceRef": None,
 	# an allow list which error codes should trigger a verbose message output on stderr/stdout
 	# take a look in viur.datastore.errors.CANONICAL_ERROR_CODE_MAP keys and the Exceptions for reference
-	"verbose_error_codes": {"FAILED_PRECONDITION", "UNAVAILABLE"}
+	"verbose_error_codes": {
+		"ABORTED",
+		"ALREADY_EXISTS",
+		"DEADLINE_EXCEEDED",
+		"FAILED_PRECONDITION",
+		"INTERNAL",
+		"INVALID_ARGUMENT",
+		"NOT_FOUND",
+		"PERMISSION_DENIED",
+		"RESOURCE_EXHAUSTED",
+		"UNAUTHENTICATED",
+		"UNAVAILABLE"
+	}
 }
