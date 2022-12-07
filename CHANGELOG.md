@@ -1,18 +1,20 @@
 ## [develop] - Current development version
 
-### Added
+### Add
 
-- Add get_orders and test (#19)
+### Change
 
-### Changed
+### Fix
 
-- Specified 3.10 as min python version in setup
+### Refactor
 
-### Fixed
+### Remove
 
-- Fix multiple query (#18)
+## [1.3.5]
 
-### Removed
+### Change
+
+- Enable all exceptions/errors for verbose pprint in log (#20)
 
 ## [1.3.4]
 
@@ -22,7 +24,7 @@
 
 ### Changed
 
-- Specified 3.9 as min python version in setup
+- Specified 3.10 as min python version in setup
 
 ### Fixed
 
