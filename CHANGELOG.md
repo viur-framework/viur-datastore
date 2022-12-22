@@ -10,6 +10,22 @@
 
 ### Remove
 
+## [1.3.6]
+
+### Add
+
+- add count aggregation query (#23)
+
+### Change
+
+### Fix
+
+- fulltextsearch _entryMatchesQuery need the actual filter and we need to test on QueryDefinition instead of dict (#24)
+
+### Refactor
+
+- Quarantee exclude_from_indexes is a set (#22)
+
 ## [1.3.5]
 
 ### Change
