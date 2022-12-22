@@ -915,7 +915,7 @@ def Count(kind: str = None, up_to= 2 ** 63 - 1, queryDefinition: QueryDefinition
 	cdef simdjsonElement element
 	cdef simdjsonElement element_inner
 	cdef simdjsonArray array_element, array_element_inner
-
+	logging.warning("This method is a preview by Google we can not guarantee that it works!!!")
 	if not kind:
 		kind = queryDefinition.kind
 
