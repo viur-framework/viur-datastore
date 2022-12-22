@@ -137,10 +137,10 @@ class QueryCustomFunctionsTest(BaseTestClass):
 		self.assertEqual(qry.count(), 10)
 		qry = datastore.Query(testKindName).filter("intVal =", 1)
 		self.assertEqual(qry.count(), 1)
-		qry = datastore.Query(testKindName).filter("intVal <", 5)
+		qry = datastore.Query(testKindName).filter("intVal >", 5)
 		self.assertEqual(qry.count(), 4)
-		qry = datastore.Query(testKindName).filter("intVal <=", 5)
+		qry = datastore.Query(testKindName).filter("intVal >=", 5)
 		self.assertEqual(qry.count(), 5)
-		qry = datastore.Query(testKindName).filter("intVal >", 9)
+		qry = datastore.Query(testKindName).filter("intVal <", 9)
 		self.assertEqual(qry.count(), 9)
 		self.assertEqual(qry.count(up_to=5), 5)  # Ensure we cover up_to
