@@ -552,10 +552,10 @@ class Query(object):
 			res = self.srcSkel.customDatabaseAdapter.fulltextSearch(qryStr, self)
 			if not self.srcSkel.customDatabaseAdapter.fulltextSearchGuaranteesQueryConstrains:
 				# Search might yield results that are not included in the listfilter
-				if isinstance(self.queries, dict):  # Just one
-					res = [x for x in res if _entryMatchesQuery(x, self.queries)]
+				if isinstance(self.queries, QueryDefinition):  # Just one
+					res = [x for x in res if _entryMatchesQuery(x, self.queries.filters)]
 				else:  # Multi-Query, must match at least one
-					res = [x for x in res if any([_entryMatchesQuery(x, y) for y in self.queries])]
+					res = [x for x in res if any([_entryMatchesQuery(x, y.filters) for y in self.queries])]
 		elif isinstance(self.queries, list):
 			# We have more than one query to run
 			if self._calculateInternalMultiQueryLimit:
