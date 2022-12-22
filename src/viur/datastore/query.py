@@ -5,7 +5,7 @@ from functools import partial
 from copy import deepcopy
 from viur.datastore.types import QueryDefinition, DATASTORE_BASE_TYPES, Entity, currentDbAccessLog, SortOrder, \
 	SkelListRef, KEY_SPECIAL_PROPERTY
-from viur.datastore.transport import runSingleFilter, Get
+from viur.datastore.transport import runSingleFilter, Get ,Count
 from viur.datastore.utils import IsInTransaction
 from viur.datastore.config import conf
 from base64 import urlsafe_b64encode, urlsafe_b64decode
@@ -577,6 +577,23 @@ class Query(object):
 		if res:
 			self._lastEntry = res[-1]
 		return res
+
+	def count(self, up_to: int = 2 ** 63-1):
+		"""
+			The count operation cost one entity read for up to 1,000 index entries matched
+			(https://cloud.google.com/datastore/docs/aggregation-queries#pricing)
+			:param up_to can be sigend int 64 bit (max positive 2^31-1)
+
+			:returns: Count entries for this query.
+		"""
+		if self.queries is None:
+			if conf["traceQueries"]:
+				logging.debug("Query on %s aborted as being not satisfiable" % self.kind)
+			return -1
+		elif isinstance(self.queries, list):
+			raise ValueError("No count on Multiqueries")
+		else:
+			return Count(queryDefinition=self.queries, up_to=up_to)
 
 	def fetch(self, limit: int = -1) -> List['SkeletonInstanceRef']:
 		"""

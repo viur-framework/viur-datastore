@@ -897,3 +897,89 @@ def AllocateIDs(keys: Union[Key, List[Key]]) -> Union[Key, List[Key]]:
 		logging.error(req.content)
 		raise ValueError("Invalid data received from Datastore API")
 
+def Count(kind: str = None, up_to= 2 ** 63 - 1, queryDefinition: QueryDefinition = None) -> Union[Key, List[Key]]:
+	"""
+		Count all entries in a kind if there is only a kind is provided
+		Count the entries for an given query.
+		:param kind name of the module (kind) we want to count
+		:param up_to can be sigend int 64 bit (max positive 2^31-1)
+		:param queryDefinition: The query to run
+		:return: The count as an int
+
+		.. warning: This function does not support transactions! Even if called inside transactions, the keys will
+			be allocated immediately, even if the transaction aborts.
+	"""
+	cdef simdjsonParser parser = simdjsonParser()
+	cdef Py_ssize_t pysize
+	cdef char * data_ptr
+	cdef simdjsonElement element
+	cdef simdjsonElement element_inner
+	cdef simdjsonArray array_element, array_element_inner
+	logging.warning("This method is a preview by Google we can not guarantee that it works!!!")
+	if not kind:
+		kind = queryDefinition.kind
+
+	post_data = {
+
+		"partitionId": {
+			"project_id": projectID,
+		}, "aggregation_query": {
+			"aggregations": {"count": {"up_to": up_to}},
+			"nested_query": {"kind": [{"name": kind}]}
+		},
+
+	}
+	if queryDefinition:
+		if queryDefinition.filters:
+			filterList = []
+			for k, v in queryDefinition.filters.items():
+				key, op = k.split(" ")
+				if op == "=":
+					op = "EQUAL"
+				elif op == "<":
+					op = "LESS_THAN"
+				elif op == "<=":
+					op = "LESS_THAN_OR_EQUAL"
+				elif op == ">":
+					op = "GREATER_THAN"
+				elif op == ">=":
+					op = "GREATER_THAN_OR_EQUAL"
+				else:
+					raise ValueError("Invalid op %s" % op)
+				if not isinstance(v, list):
+					# An entity can have a list of values for a single property, so it's possible to enforce
+					# more an one constraint for a a single property (e.g. x==5 and x==7 can be true), so
+					# enforce we always have a list here
+					v = [v]
+				for singleValue in v:
+					filterList.append({
+						"propertyFilter": {
+							"property": {
+								"name": key,
+							},
+							"op": op,
+							"value": pythonPropToJson(singleValue)
+						}
+					})
+			if len(filterList) == 1:  # Special, single filter
+				post_data["aggregation_query"]["nested_query"]["filter"] = filterList[0]
+			else:
+				post_data["aggregation_query"]["nested_query"]["filter"] = {
+					"compositeFilter": {
+						"op": "AND",
+						"filters": filterList
+					}
+				}
+	req = authenticatedRequest(
+		url="https://datastore.googleapis.com/v1/projects/%s:runAggregationQuery" % projectID,
+		data=json.dumps(post_data).encode("UTF-8"),
+	)
+	assert req.status_code == 200
+	assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+	element = parser.parse(data_ptr, pysize, 1)
+	if element.at_pointer("/batch").error() != SUCCESS:
+		print("INVALID RESPONSE RECEIVED")
+		pprint.pprint(json.loads(req.content))
+	element = element.at_key("batch")
+	# TODO  maybe this can be solved more elegant
+	return int(toPythonStructure(element)["aggregationResults"][0]["aggregateProperties"]["property_1"]["integerValue"])

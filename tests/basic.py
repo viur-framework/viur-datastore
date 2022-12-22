@@ -108,5 +108,16 @@ class BasicFunctionTest(BaseTestClass):
 		self.assertEqual(entity["testlist"], testList)
 		self.assertFalse("testlist" in entity.exclude_from_indexes)
 
+	def test_count(self):
+		"""
+			Ensure that datastore.Count() calls are also covered
+		"""
+		for x in range(10):  # Create 10 entities to test with
+			e = datastore.Entity(datastore.Key(testKindName))
+			e["test"] = x
+			datastore.Put(e)
+		self.assertEqual(datastore.Count(testKindName), 10)
+		self.assertEqual(datastore.Count(testKindName, 4), 4)
+
 if __name__ == '__main__':
 	unittest.main()
