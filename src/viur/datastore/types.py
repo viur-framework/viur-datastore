@@ -111,7 +111,7 @@ class Key:
 				id=currentKey.id,
 				name=currentKey.name,
 			))
-			currentKey = self.parent
+			currentKey = currentKey.parent
 		reference = _app_engine_key_pb2.Reference(
 			app=projectID,
 			path=_app_engine_key_pb2.Path(element=pathElements),
