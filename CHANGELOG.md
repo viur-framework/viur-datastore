@@ -10,6 +10,18 @@
 
 ### Remove
 
+## [1.3.7]
+
+### Add
+
+### Change
+
+### Fix
+
+- fix to_legacy_urlsafe (#26)
+
+### Refactor
+
 ## [1.3.6]
 
 ### Add
