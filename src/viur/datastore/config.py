@@ -22,5 +22,7 @@ conf = {
 		"RESOURCE_EXHAUSTED",
 		"UNAUTHENTICATED",
 		"UNAVAILABLE"
-	}
+	},
+	"memcache_client": None,
+	"use_memcache_client": False,
 }

@@ -2,6 +2,7 @@
 # distutils: language = c++
 # cython: language_level=3
 import base64
+from copy import copy
 
 import google.auth
 import requests
@@ -20,7 +21,8 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 import logging
 from time import sleep
 
-
+__max_memcache_size = 30
+__memcache_namespace = "viur-datastore"
 ## Start of CPP-Imports required for the simdjson->python bridge
 
 cdef extern from "Python.h":
@@ -581,14 +583,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	accessLog = currentDbAccessLog.get()
 	if isinstance(accessLog, set):
 		accessLog.update(set(keys))
-	keyList = [
-		{
-			"partitionId": {
-				"project_id": projectID,
-			},
-			"path": keyToPath(x)
-		}
-		for x in keys]
+
 
 	currentTxn = currentTransaction.get()
 	if currentTxn:
@@ -596,8 +591,30 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	else:
 		readOptions = {"readConsistency": "STRONG"}
 	res = {}
-	while keyList:
-		requestedKeys = keyList[:300]
+	untouch_keys = copy(keys)
+	while keys:
+		logging.debug(keys)
+		keys_for_request = keys[:__max_memcache_size]
+
+		res_from_cache={}
+
+		if conf["use_memcache_client"] and conf["memcache_client"]:
+			res_from_cache = conf["memcache_client"].get_multi([key.to_legacy_urlsafe() for key in keys_for_request],
+															   namespace=__memcache_namespace)
+			res_from_cache = {Key.from_legacy_urlsafe(key.decode("utf-8")): value for key, value in
+							  res_from_cache.items()}
+		missing_keys = [key for key in keys_for_request if key not in res_from_cache.keys()]
+		if len(missing_keys)== 0:
+			keys = keys[__max_memcache_size:]
+			continue
+		requestedKeys = [
+			{
+				"partitionId": {
+					"project_id": projectID,
+				},
+				"path": keyToPath(x)
+			}
+			for x in missing_keys]
 		postData = {
 			"readOptions": readOptions,
 			"keys": requestedKeys,
@@ -612,13 +629,21 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 		if (element.at_pointer("/found").error() == SUCCESS):
 			res.update(toEntityStructure(element.at_key("found"), isInitial=True))
 		if (element.at_pointer("/deferred").error() == SUCCESS):
-			keyList = toPythonStructure(element.at_key("deferred")) + keyList[300:]
+			# FIXME how we handele this
+			deferred_keys = toPythonStructure(element.at_key("deferred"))
+			[key["path"] for key in deferred_keys]
+			keys = toPythonStructure(element.at_key("deferred")) + keys[300:]
 		else:
-			keyList = keyList[300:]
+			keys = keys[__max_memcache_size:]
+	if conf["use_memcache_client"] and conf["memcache_client"]:
+		logging.debug("set data in  meme cache")
+		cache_data = { str(key): value for key,value in res.items()}
+		logging.debug(cache_data)
+		conf["memcache_client"].set_multi(cache_data,namespace=__memcache_namespace)
 	if not isMulti:
-		return res.get(keys[0])
+		return res.get(untouch_keys[0])
 	else:
-		return [res.get(x) for x in keys]  # Sort by order of incoming keys
+		return [res.get(key) for key in untouch_keys]  # Sort by order of incoming keys
 
 def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 	"""
@@ -672,6 +697,8 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		if arrayElem.size() != abs(len(keys)):
 			print(req.content)
 			raise ValueError("Invalid number of mutation-results received")
+	if conf["use_memcache_client"] and conf["memcache_client"]:
+		res_from_cache = conf["memcache_client"].delete_multi([str(key) for key in keys])
 
 def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 	"""
