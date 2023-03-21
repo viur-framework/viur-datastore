@@ -1,6 +1,7 @@
 # distutils: sources = src/viur/datastore/simdjson.cpp
 # distutils: language = c++
 # cython: language_level=3
+import sys
 import base64
 from copy import copy
 
@@ -21,8 +22,10 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 import logging
 from time import sleep
 
-__max_memcache_size = 30
+__memcache_max_batch_size = 30
 __memcache_namespace = "viur-datastore"
+__memcache_timeout = 60*60
+__memcache_max_size = 1_000_000
 ## Start of CPP-Imports required for the simdjson->python bridge
 
 cdef extern from "Python.h":
@@ -594,9 +597,10 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	untouch_keys = copy(keys)
 	while keys:
 		logging.debug(keys)
-		keys_for_request = keys[:__max_memcache_size]
+		keys_for_request = keys[:__memcache_max_batch_size]
 
 		res_from_cache={}
+		res_from_db={}
 
 		if conf["use_memcache_client"] and conf["memcache_client"]:
 			res_from_cache = conf["memcache_client"].get_multi([key.to_legacy_urlsafe() for key in keys_for_request],
@@ -605,7 +609,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 							  res_from_cache.items()}
 		missing_keys = [key for key in keys_for_request if key not in res_from_cache.keys()]
 		if len(missing_keys)== 0:
-			keys = keys[__max_memcache_size:]
+			keys = keys[__memcache_max_batch_size:]
 			continue
 		requestedKeys = [
 			{
@@ -628,18 +632,21 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/found").error() == SUCCESS):
 			res.update(toEntityStructure(element.at_key("found"), isInitial=True))
+
 		if (element.at_pointer("/deferred").error() == SUCCESS):
-			# FIXME how we handele this
 			deferred_keys = toPythonStructure(element.at_key("deferred"))
-			[key["path"] for key in deferred_keys]
-			keys = toPythonStructure(element.at_key("deferred")) + keys[300:]
+			missing_keys_paths=[keyToPath(key) for key in missing_keys]
+			keys = keys[__memcache_max_batch_size:]
+			for i,deferred_key in enumerate(deferred_keys):
+				if deferred_key in missing_keys_paths:
+					keys.insert(0,missing_keys[i])
+
 		else:
-			keys = keys[__max_memcache_size:]
+			keys = keys[__memcache_max_batch_size:]
 	if conf["use_memcache_client"] and conf["memcache_client"]:
-		logging.debug("set data in  meme cache")
-		cache_data = { str(key): value for key,value in res.items()}
-		logging.debug(cache_data)
-		conf["memcache_client"].set_multi(cache_data,namespace=__memcache_namespace)
+		#Add only values to cache <= 1.000.000 Bytes
+		cache_data = { str(key): value for key,value in res.items() if get_size(value)<= __memcache_max_size}
+		conf["memcache_client"].set_multi(cache_data,namespace=__memcache_namespace,time=__memcache_timeout)
 	if not isMulti:
 		return res.get(untouch_keys[0])
 	else:
@@ -1010,3 +1017,11 @@ def Count(kind: str = None, up_to= 2 ** 63 - 1, queryDefinition: QueryDefinition
 	element = element.at_key("batch")
 	# TODO  maybe this can be solved more elegant
 	return int(toPythonStructure(element)["aggregationResults"][0]["aggregateProperties"]["property_1"]["integerValue"])
+
+def get_size(obj):
+	if isinstance(obj, dict):
+		return sum([get_size([k, v]) for k, v in obj.items()])
+	elif isinstance(obj, list):
+		return sum([get_size(x) for x in obj])
+
+	return sys.getsizeof(obj)
