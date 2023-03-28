@@ -59,7 +59,7 @@ def keyHelper(inKey: Union[Key, str, int], targetKind: str,
 		if inKey.kind != targetKind and inKey.kind not in additionalAllowedKinds:
 			if not adjust_kind:
 				raise ValueError(f"Kind mismatch: {inKey.kind!r} != {targetKind!r} (or in {additionalAllowedKinds!r})")
-			decodedKey.kind = targetKind
+			inKey.kind = targetKind
 		return inKey
 	elif isinstance(inKey, str):
 		# Try to parse key from str
