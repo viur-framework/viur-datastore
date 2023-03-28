@@ -1,6 +1,6 @@
 from viur.datastore.types import Entity, Key, currentTransaction, currentDbAccessLog
 from viur.datastore.transport import Get, Put, RunInTransaction
-from typing import Union, List, Set, Optional
+from typing import Union, Tuple, List, Set, Optional
 import binascii
 from datetime import datetime
 
@@ -53,27 +53,39 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
 
 
 def keyHelper(inKey: Union[Key, str, int], targetKind: str,
-			  additionalAllowedKinds: Union[None, List[str]] = None) -> Key:
-	if isinstance(inKey, str):
+			  additionalAllowedKinds: Union[None, List[str], Tuple[str]] = (),
+              adjust_kind: bool = False) -> Key:
+	if isinstance(inKey, Key):
+		if inKey.kind != targetKind and inKey.kind not in additionalAllowedKinds:
+			if not adjust_kind:
+				raise ValueError(f"Kind mismatch: {inKey.kind!r} != {targetKind!r} (or in {additionalAllowedKinds!r})")
+			decodedKey.kind = targetKind
+		return inKey
+	elif isinstance(inKey, str):
+		# Try to parse key from str
 		try:
 			decodedKey = normalizeKey(Key.from_legacy_urlsafe(inKey))
 		except:
 			decodedKey = None
-		if decodedKey:  # If it did decode, don't try any further
-			if decodedKey.kind != targetKind and (not additionalAllowedKinds or decodedKey.kind not in additionalAllowedKinds):
-				raise ValueError("Kin1d mismatch: %s != %s" % (decodedKey.kind, targetKind))
-			return decodedKey
+
+		# If it did decode, recall keyHelper with Key object
+		if decodedKey:
+			return keyHelper(
+				decodedKey,
+				targetKind=targetKind,
+				additionalAllowedKinds=additionalAllowedKinds,
+				adjust_kind=adjust_kind
+			)
+
+		# otherwise, construct key from str or int
 		if inKey.isdigit():
 			inKey = int(inKey)
+
 		return Key(targetKind, inKey)
 	elif isinstance(inKey, int):
 		return Key(targetKind, inKey)
-	elif isinstance(inKey, Key):
-		if inKey.kind != targetKind and (not additionalAllowedKinds or inKey.kind not in additionalAllowedKinds):
-			raise ValueError("Kin1d mismatch: %s != %s (%s)" % (inKey.kind, targetKind, additionalAllowedKinds))
-		return inKey
-	else:
-		raise ValueError("Unknown key type %r" % type(inKey))
+
+	raise NotImplementedError(f"Unsupported key type {type(inKey)}")
 
 def IsInTransaction() -> bool:
 	return currentTransaction.get() is not None
