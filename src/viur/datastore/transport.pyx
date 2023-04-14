@@ -546,7 +546,12 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 		if element.at_pointer("/entityResults").error() == SUCCESS:
 			res.extend(toEntityStructure(element.at_key("entityResults"), isInitial=False))
 		else:  # No results received
-			break
+			if toPyStr(element.at_key("moreResults").get_string()) == "NOT_FINISHED":
+				logging.warning("Query not finished. Maybe some entries are missing.")
+				logging.warning("Queried %s with filter %s and orders %s. - Please create a matching index" % (
+					queryDefinition.kind, queryDefinition.filters, queryDefinition.orders))
+			else:
+				break
 		if toPyStr(element.at_key("moreResults").get_string()) == "NO_MORE_RESULTS":
 			internalStartCursor = None
 		else:
