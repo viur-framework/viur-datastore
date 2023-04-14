@@ -10,6 +10,16 @@
 
 ### Remove
 
+## [1.3.9]
+
+Thx to @XeoN-GHMB for the contribution
+
+- feat: If no more results but query is not finished print a warning (#29)
+
+### Change
+
+- print a warning when zig zag merge algo does not provide a result on end of query run
+
 ## [1.3.8]
 
 Thx to @phorward for the contribution
