@@ -407,13 +407,17 @@ class Query(object):
 
 			:returns: The orders form this query as a list if there is no orders set it returns None
 		"""
-		if isinstance(self.queries, QueryDefinition):
-			q = self.queries
-		elif isinstance(self.queries, list):
-			q = self.queries[0]
-		else:
-			raise f"self.queries can only be from type 'QueryDefinition' or a list of 'QueryDefinition'"
-		return q.orders if q.orders else None
+		q = self.queries
+
+		if isinstance(q, (list, tuple)):
+			q = q[0]
+
+		if not isinstance(q, QueryDefinition):
+			raise ValueError(
+				f"self.queries can only be a 'QueryDefinition' or a list of, but found {self.queries!r}"
+			)
+
+		return q.orders or None
 
 	def getKind(self) -> str:
 		"""

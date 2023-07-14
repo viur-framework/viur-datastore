@@ -10,6 +10,43 @@
 
 ### Remove
 
+## [1.3.9]
+
+Thx to @XeoN-GHMB for the contribution
+
+- feat: If no more results but query is not finished print a warning (#29)
+
+### Change
+
+- print a warning when zig zag merge algo does not provide a result on end of query run
+
+## [1.3.8]
+
+Thx to @phorward for the contribution
+
+- Improve keyHelper function (#28)
+- Improve Query.get_orders() (#27)
+
+### Add
+
+- Call recursively with decoded key based on a string to implement target kind checking once
+  - `adjust_kind`-parameter to optionally allow to adjust invalid kind to the target kind; This is useful when rewriting keys is explicitly wanted.
+
+### Change
+
+- Raise NotImplementedError on unsupported key type
+
+### Fix
+
+- Fix ValueError raise to f-string
+- Fix invalid str raise...
+
+### Refactor
+
+- cleaned up code
+
+### Remove
+
 ## [1.3.7]
 
 ### Add
