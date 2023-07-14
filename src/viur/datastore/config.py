@@ -23,5 +23,5 @@ conf = {
 		"UNAUTHENTICATED",
 		"UNAVAILABLE"
 	},
-	"use_memcache_client": True,
+	"use_memcache_client": False,
 }

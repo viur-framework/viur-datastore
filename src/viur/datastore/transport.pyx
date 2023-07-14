@@ -1,10 +1,8 @@
 # distutils: sources = src/viur/datastore/simdjson.cpp
 # distutils: language = c++
 # cython: language_level=3
-import sys
-import base64
 from copy import copy
-from viur.datastore.cache import cache
+from viur.datastore import cache
 import google.auth
 import requests
 from libcpp cimport bool as boolean_type
@@ -21,9 +19,6 @@ from typing import Union, List, Any
 from requests.exceptions import ConnectionError as RequestsConnectionError
 import logging
 from time import sleep
-
-
-
 ## Start of CPP-Imports required for the simdjson->python bridge
 
 cdef extern from "Python.h":
@@ -597,22 +592,21 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	else:
 		readOptions = {"readConsistency": "STRONG"}
 	res = {}
+	res_from_cache = {}
+	res_from_db = {}
 	untouch_keys = copy(keys)
 	while keys:
-		logging.debug(keys)
-		keys_for_request = keys[:cache._memcache_max_batch_size]
-
-		res_from_cache={}
-		res_from_db={}
+		keys_for_request = keys[:300]
 
 		if conf["use_memcache_client"]:
-			res_from_cache = cache.get([key.to_legacy_urlsafe() for key in keys_for_request])
+			res_from_cache = cache.get(keys_for_request)
 			# Convert the keys back to "class" representation
-			res_from_cache = {Key.from_legacy_urlsafe(key.decode("utf-8")): value for key, value in
+			res_from_cache = {Key.from_legacy_urlsafe(key): value for key, value in
 							  res_from_cache.items()}
+
 		missing_keys = [key for key in keys_for_request if key not in res_from_cache.keys()]
 		if len(missing_keys)== 0:
-			keys = keys[cache._memcache_max_batch_size:]
+			keys = keys[300:]
 			continue
 		requestedKeys = [
 			{
@@ -634,22 +628,23 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/found").error() == SUCCESS):
-			res.update(toEntityStructure(element.at_key("found"), isInitial=True))
+			res_from_db.update(toEntityStructure(element.at_key("found"), isInitial=True))
 
 		if (element.at_pointer("/deferred").error() == SUCCESS):
 			deferred_keys = toPythonStructure(element.at_key("deferred"))
 			missing_keys_paths=[keyToPath(key) for key in missing_keys]
-			keys = keys[cache._memcache_max_batch_size:]
+			keys = keys[300:]
 			for i,deferred_key in enumerate(deferred_keys):
 				if deferred_key in missing_keys_paths:
 					keys.insert(0,missing_keys[i])
 
 		else:
-			keys = keys[cache._memcache_max_batch_size:]
+			keys = keys[300:]
+	res |= res_from_cache
+	res |= res_from_db
 	if conf["use_memcache_client"]:
-		#Add only values to cache <= 1.000.000 Bytes
-		cache_data = { str(key): value for key,value in res.items() if get_size(value)<= cache._memcache_max_size}
-		cache.put(cache_data)
+		# Cache only the entities form db.
+		cache.set({str(key): value for key, value in res_from_db.items()})
 
 	if not isMulti:
 		return res.get(untouch_keys[0])
@@ -708,8 +703,8 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		if arrayElem.size() != abs(len(keys)):
 			print(req.content)
 			raise ValueError("Invalid number of mutation-results received")
-	if conf["use_memcache_client"] and conf["memcache_client"]:
-		res_from_cache = conf["memcache_client"].delete_multi([str(key) for key in keys])
+	if conf["use_memcache_client"] :
+		cache.delete([str(key) for key in keys])
 
 def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 	"""
@@ -771,10 +766,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			idx += 1
 		if conf["use_memcache_client"]:
 			# iter over all entities and write them to the chache
-			for entity in entities:
-				pprint.pprint("###Entity")
-				pprint.pprint(entity)
-				#cache.put({ str(key): value for key,value in entities.items() if get_size(value)<= cache._memcache_max_size})
+			cache.set(entities)
 	return entities
 
 
@@ -1028,10 +1020,4 @@ def Count(kind: str = None, up_to= 2 ** 63 - 1, queryDefinition: QueryDefinition
 	# TODO  maybe this can be solved more elegant
 	return int(toPythonStructure(element)["aggregationResults"][0]["aggregateProperties"]["property_1"]["integerValue"])
 
-def get_size(obj):
-	if isinstance(obj, dict):
-		return sum([get_size([k, v]) for k, v in obj.items()])
-	elif isinstance(obj, list):
-		return sum([get_size(x) for x in obj])
 
-	return sys.getsizeof(obj)
