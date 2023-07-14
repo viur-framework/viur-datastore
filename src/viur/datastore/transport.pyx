@@ -4,7 +4,7 @@
 import sys
 import base64
 from copy import copy
-
+from viur.datastore.cache import cache
 import google.auth
 import requests
 from libcpp cimport bool as boolean_type
@@ -22,10 +22,8 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 import logging
 from time import sleep
 
-__memcache_max_batch_size = 30
-__memcache_namespace = "viur-datastore"
-__memcache_timeout = 60*60
-__memcache_max_size = 1_000_000
+
+
 ## Start of CPP-Imports required for the simdjson->python bridge
 
 cdef extern from "Python.h":
@@ -597,19 +595,19 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	untouch_keys = copy(keys)
 	while keys:
 		logging.debug(keys)
-		keys_for_request = keys[:__memcache_max_batch_size]
+		keys_for_request = keys[:cache._memcache_max_batch_size]
 
 		res_from_cache={}
 		res_from_db={}
 
-		if conf["use_memcache_client"] and conf["memcache_client"]:
-			res_from_cache = conf["memcache_client"].get_multi([key.to_legacy_urlsafe() for key in keys_for_request],
-															   namespace=__memcache_namespace)
+		if conf["use_memcache_client"]:
+			res_from_cache = cache.get([key.to_legacy_urlsafe() for key in keys_for_request])
+			# Convert the keys back to "class" representation
 			res_from_cache = {Key.from_legacy_urlsafe(key.decode("utf-8")): value for key, value in
 							  res_from_cache.items()}
 		missing_keys = [key for key in keys_for_request if key not in res_from_cache.keys()]
 		if len(missing_keys)== 0:
-			keys = keys[__memcache_max_batch_size:]
+			keys = keys[cache._memcache_max_batch_size:]
 			continue
 		requestedKeys = [
 			{
@@ -636,17 +634,18 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 		if (element.at_pointer("/deferred").error() == SUCCESS):
 			deferred_keys = toPythonStructure(element.at_key("deferred"))
 			missing_keys_paths=[keyToPath(key) for key in missing_keys]
-			keys = keys[__memcache_max_batch_size:]
+			keys = keys[cache._memcache_max_batch_size:]
 			for i,deferred_key in enumerate(deferred_keys):
 				if deferred_key in missing_keys_paths:
 					keys.insert(0,missing_keys[i])
 
 		else:
-			keys = keys[__memcache_max_batch_size:]
-	if conf["use_memcache_client"] and conf["memcache_client"]:
+			keys = keys[cache._memcache_max_batch_size:]
+	if conf["use_memcache_client"]:
 		#Add only values to cache <= 1.000.000 Bytes
-		cache_data = { str(key): value for key,value in res.items() if get_size(value)<= __memcache_max_size}
-		conf["memcache_client"].set_multi(cache_data,namespace=__memcache_namespace,time=__memcache_timeout)
+		cache_data = { str(key): value for key,value in res.items() if get_size(value)<= cache._memcache_max_size}
+		cache.put(cache_data)
+
 	if not isMulti:
 		return res.get(untouch_keys[0])
 	else:
@@ -765,6 +764,12 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			entities[idx].version = toPyStr(innerArrayElem.at_key("version").get_string())
 			preincrement(arrayIt)
 			idx += 1
+		if conf["use_memcache_client"]:
+			# iter over all entities and write them to the chache
+			for entity in entities:
+				pprint.pprint("###Entity")
+				pprint.pprint(entity)
+				#cache.put({ str(key): value for key,value in entities.items() if get_size(value)<= cache._memcache_max_size})
 	return entities
 
 

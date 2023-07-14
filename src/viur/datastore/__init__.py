@@ -1,5 +1,6 @@
 from viur.datastore.config import conf as config
 from viur.datastore.errors import *
+from viur.datastore.cache import cache
 from viur.datastore.query import Query
 from viur.datastore.transport import AllocateIDs, Delete, Get, Put, RunInTransaction, Count
 from viur.datastore.types import (
