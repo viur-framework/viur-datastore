@@ -2,7 +2,7 @@
 # distutils: language = c++
 # cython: language_level=3
 import base64
-
+import cysimdjson
 import google.auth
 import requests
 from libcpp cimport bool as boolean_type
@@ -97,7 +97,7 @@ cdef extern from "simdjson.h" namespace "simdjson::dom":
 
 ## End of C-Imports
 
-
+cyparser = cysimdjson.JSONParser()
 credentials, projectID = google.auth.default(scopes=["https://www.googleapis.com/auth/datastore"])
 _http_internal = google.auth.transport.requests.AuthorizedSession(
 	credentials,
@@ -575,10 +575,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 		:param keys: A Key or a List of Keys to fetch
 		:return: The entity or None for the given key, a list of Entities/None if a list has been supplied
 	"""
-	cdef simdjsonParser parser = simdjsonParser()
-	cdef Py_ssize_t pysize
-	cdef char * data_ptr
-	cdef simdjsonElement element
+
 	isMulti = True
 	if isinstance(keys, Key):
 		keys = [keys]
@@ -612,12 +609,18 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 			data=json.dumps(postData).encode("UTF-8"),
 		)
 		assert req.status_code == 200
-		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
-		element = parser.parse(data_ptr, pysize, 1)
-		if (element.at_pointer("/found").error() == SUCCESS):
-			res.update(toEntityStructure(element.at_key("found"), isInitial=True))
-		if (element.at_pointer("/deferred").error() == SUCCESS):
-			keyList = toPythonStructure(element.at_key("deferred")) + keyList[300:]
+
+
+		parsed_element = cyparser.parse(req.content)
+		if parsed_element.at_pointer("/found"):
+			pprint.pprint("##Parse ELEMENT")
+			pprint.pprint(parsed_element.at_pointer("/found"))
+			pprint.pprint(parsed_element["found"])
+			pprint.pprint(parsed_element.at_pointer("/found").export())
+			res.update(parsed_element.at_pointer("/found").export())
+		if parsed_element.at_pointer("/deferred"):
+			pass
+			#keyList = toPythonStructure(parsed_element.at_key("deferred")) + keyList[300:]
 		else:
 			keyList = keyList[300:]
 	if not isMulti:

@@ -1,3 +1,4 @@
+import cysimdjson
 from viur.datastore.config import conf as config
 from viur.datastore.errors import *
 from viur.datastore.query import Query
