@@ -1,8 +1,9 @@
-# distutils: sources = src/viur/datastore/simdjson.cpp
 # distutils: language = c++
 # cython: language_level=3
 import base64
 import cysimdjson
+
+from cysimdjson import JSONArray, JSONElement, JSONObject, JSONParser
 import google.auth
 import requests
 from libcpp cimport bool as boolean_type
@@ -19,6 +20,8 @@ from typing import Union, List, Any
 from requests.exceptions import ConnectionError as RequestsConnectionError
 import logging
 from time import sleep
+
+parser = JSONParser()
 
 
 ## Start of CPP-Imports required for the simdjson->python bridge
@@ -38,7 +41,7 @@ cdef extern from "simdjson.h" namespace "simdjson::error_code":
 		NO_SUCH_FIELD
 
 cdef extern from "simdjson.h" namespace "simdjson::dom::element_type":
-	cdef enum simdjsonElementType "simdjson::dom::element_type":
+	cdef enum JSONElementType "simdjson::dom::element_type":
 		OBJECT,
 		ARRAY,
 		STRING,
@@ -51,53 +54,11 @@ cdef extern from "simdjson.h" namespace "simdjson::dom::element_type":
 cdef extern from "simdjson.h" namespace "simdjson::simdjson_result":
 	cdef cppclass simdjsonResult "simdjson::simdjson_result<simdjson::dom::element>":
 		simdjsonErrorCode error()
-		simdjsonElement value()
+		JSONElement value()
 
-cdef extern from "simdjson.h" namespace "simdjson::dom":
-	cdef cppclass simdjsonObject "simdjson::dom::object":
-		cppclass iterator:
-			iterator()
-			iterator operator++()
-			bint operator !=(iterator)
-			stringView key()
-			simdjsonElement value()
-		simdjsonObject()
-		iterator begin()
-		iterator end()
-
-	cdef cppclass simdjsonArray "simdjson::dom::array":
-		cppclass iterator:
-			iterator()
-			iterator operator++()
-			bint operator !=(iterator)
-			simdjsonElement operator *()
-		simdjsonArray()
-		iterator begin()
-		iterator end()
-		simdjsonElement at(int) except +
-		simdjsonElement at_pointer(const char *) except +
-		int size()
-
-	cdef cppclass simdjsonElement "simdjson::dom::element":
-		simdjsonElement()
-		simdjsonElementType type() except +
-		boolean_type get_bool() except +
-		int64_t get_int64() except +
-		uint64_t get_uint64() except +
-		double get_double() except +
-		stringView get_string() except +
-		simdjsonArray get_array() except +
-		simdjsonObject get_object() except +
-		simdjsonElement at_key(const char *) except +  # Raises if key not found
-		simdjsonResult at_pointer(const char *)  # Same as at_key - sets result error code if key not found
-
-	cdef cppclass simdjsonParser "simdjson::dom::parser":
-		simdjsonParser()
-		simdjsonElement parse(const char * buf, size_t len, boolean_type realloc_if_needed) except +
 
 ## End of C-Imports
 
-cyparser = cysimdjson.JSONParser()
 credentials, projectID = google.auth.default(scopes=["https://www.googleapis.com/auth/datastore"])
 _http_internal = google.auth.transport.requests.AuthorizedSession(
 	credentials,
@@ -249,15 +210,15 @@ cdef inline object toPyStr(stringView strView):
 		strView.length()
 	)
 
-cdef inline object parseKey(simdjsonElement v):
+cdef inline object parseKey(JSONElement v):
 	"""
-		Parses a simdJsonObject representing a key to a datastore.Key instance.
+		Parses a JSONObject representing a key to a datastore.Key instance.
 
-		:param v: The simdJsonElement containing the key
+		:param v: The JSONElement containing the key
 		:return: The corresponding datastore.Key instance
 	"""
-	cdef simdjsonArray arr
-	cdef simdjsonArray.iterator arrayIt, arrayItEnd
+	cdef JSONArray arr
+	cdef JSONArray.iterator arrayIt, arrayItEnd
 	pathArgs = []
 	arr = v.at_key("path").get_array()
 	arrayIt = arr.begin()
@@ -283,21 +244,21 @@ cdef inline object parseKey(simdjsonElement v):
 		key = Key(*pathElem, parent=key)
 	return key
 
-cdef inline object toEntityStructure(simdjsonElement v, boolean_type isInitial = False):
+cdef inline object toEntityStructure(JSONElement v, boolean_type isInitial = False):
 	"""
-		Parses a simdJsonElement into the corresponding python datatypes.
-		:param v: The simdJsonElement to parse
+		Parses a JSONElement into the corresponding python datatypes.
+		:param v: The JSONElement to parse
 		:param isInitial: If true, we'll return a dictionary of key->entity instead of a list of entities
 		:return: The corresponding python datatype.
 
 		TODO: While working for now, this should probably refactored to return the parsed value and it's index flag
 			to avoid additional loops over objects.
 	"""
-	cdef simdjsonElementType et = v.type()
-	cdef simdjsonArray.iterator arrayIt, arrayItEnd
-	cdef simdjsonObject.iterator objIterStart, objIterStartInner, objIterEnd, objIterEndInner
-	cdef simdjsonElement element
-	cdef simdjsonObject outerObject, innerObject
+	cdef JSONElementType et = v.type()
+	cdef JSONArray.iterator arrayIt, arrayItEnd
+	cdef JSONObject.iterator objIterStart, objIterStartInner, objIterEnd, objIterEndInner
+	cdef JSONElement element
+	cdef JSONObject outerObject, innerObject
 	cdef stringView strView, bytesView
 	cdef simdjsonResult tmpResult
 	if et == OBJECT:
@@ -393,13 +354,13 @@ cdef inline object toEntityStructure(simdjsonElement v, boolean_type isInitial =
 			preincrement(arrayIt)
 		return res
 
-cdef inline object toPythonStructure(simdjsonElement v):
+cdef inline object toPythonStructure(JSONElement v):
 	# Convert json (sub-)tree to python objects
-	cdef simdjsonElementType et = v.type()
-	cdef simdjsonArray.iterator arrayIt, arrayItEnd
-	cdef simdjsonObject.iterator objIterStart, objIterEnd
-	cdef simdjsonElement element
-	cdef simdjsonObject Object
+	cdef JSONElementType et = v.type()
+	cdef JSONArray.iterator arrayIt, arrayItEnd
+	cdef JSONObject.iterator objIterStart, objIterEnd
+	cdef JSONElement element
+	cdef JSONObject Object
 	cdef stringView strView
 	if et == OBJECT:
 		Object = v.get_object()
@@ -445,10 +406,9 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 		:param limit:  How many entities to return at maximum
 		:return: The list of entities fetched from the datastore
 	"""
-	cdef simdjsonParser parser = simdjsonParser()
 	cdef Py_ssize_t pysize
 	cdef char * data_ptr
-	cdef simdjsonElement element
+	cdef JSONElement element
 	res = []
 	internalStartCursor = None  # Will be set if we need to fetch more than one batch
 	flipResults = False  # If set, we'll reverse the list returned (Sortorder was Inverted*)
@@ -611,7 +571,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 		assert req.status_code == 200
 
 
-		parsed_element = cyparser.parse(req.content)
+		parsed_element = parser.parse(req.content)
 		if parsed_element.at_pointer("/found"):
 			pprint.pprint("##Parse ELEMENT")
 			pprint.pprint(parsed_element.at_pointer("/found"))
@@ -636,11 +596,10 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 
 		:param keys: A Key or a List of Keys
 	"""
-	cdef simdjsonParser parser = simdjsonParser()
 	cdef Py_ssize_t pysize
 	cdef char * data_ptr
-	cdef simdjsonElement element
-	cdef simdjsonArray arrayElem
+	cdef JSONElement element
+	cdef JSONArray arrayElem
 	if isinstance(keys, Key):
 		keys = [keys]
 	elif isinstance(keys, Entity):
@@ -690,12 +649,12 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 		:return: The Entity or List of Entities as supplied, with partial keys replaced by full ones (unless called
 			inside a transaction, in which case we return None as no Keys have been determined yet)
 	"""
-	cdef simdjsonParser parser = simdjsonParser()
+
 	cdef Py_ssize_t pysize
 	cdef char * data_ptr
-	cdef simdjsonElement element, innerArrayElem
-	cdef simdjsonArray arrayElem
-	cdef simdjsonArray.iterator arrayIt
+	cdef JSONElement element, innerArrayElem
+	cdef JSONArray arrayElem
+	cdef JSONArray.iterator arrayIt
 	if isinstance(entities, Entity):
 		entities = [entities]
 	accessLog = currentDbAccessLog.get()
@@ -751,12 +710,11 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 		:param kwargs: Kwargs to pass to the function
 		:return: The return-value of the callback function
 	"""
-	cdef simdjsonParser parser = simdjsonParser()
 	cdef Py_ssize_t pysize
 	cdef char * data_ptr
-	cdef simdjsonElement element, innerArrayElem
-	cdef simdjsonArray arrayElem
-	cdef simdjsonArray.iterator arrayIt
+	cdef JSONElement element, innerArrayElem
+	cdef JSONArray arrayElem
+	cdef JSONArray.iterator arrayIt
 	for exponential_backoff in range(1, 4):
 		try:
 			oldTxn = currentTransaction.get()
@@ -858,10 +816,9 @@ def AllocateIDs(keys: Union[Key, List[Key]]) -> Union[Key, List[Key]]:
 		.. warning: This function does not support transactions! Even if called inside transactions, the keys will
 			be allocated immediately, even if the transaction aborts.
 	"""
-	cdef simdjsonParser parser = simdjsonParser()
 	cdef Py_ssize_t pysize
 	cdef char * data_ptr
-	cdef simdjsonElement element
+	cdef JSONElement element
 	isMulti = True
 	if isinstance(keys, Key):
 		keys = [keys]
@@ -917,12 +874,10 @@ def Count(kind: str = None, up_to= 2 ** 63 - 1, queryDefinition: QueryDefinition
 		.. warning: This function does not support transactions! Even if called inside transactions, the keys will
 			be allocated immediately, even if the transaction aborts.
 	"""
-	cdef simdjsonParser parser = simdjsonParser()
-	cdef Py_ssize_t pysize
 	cdef char * data_ptr
-	cdef simdjsonElement element
-	cdef simdjsonElement element_inner
-	cdef simdjsonArray array_element, array_element_inner
+	cdef JSONElement element
+	cdef JSONElement element_inner
+	cdef JSONArray array_element, array_element_inner
 	logging.warning("The 'Count() aggregation' query is a technical preview and cannot be guaranteed to work at this time!!!")
 	if not kind:
 		kind = queryDefinition.kind

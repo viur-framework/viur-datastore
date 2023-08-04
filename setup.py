@@ -1,13 +1,17 @@
+import os
+
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 from Cython.Distutils import build_ext
 
-requirements = {}
-for line in open("./requirements.txt").readlines():
-    if "==" not in line or line.strip().startswith("#"):
-        continue
-    line = line.split("--hash", maxsplit=1)[0].strip(" \t\\\r\n").split("==", 1)
-    requirements[line[0]] = line[1]
+print(os.path.abspath(os.curdir))
+
+# requirements = {}
+# for line in open(os.path.join(os.path.abspath(os.curdir), "requirements.txt")).readlines():
+#     if "==" not in line or line.strip().startswith("#"):
+#         continue
+#     line = line.split("--hash", maxsplit=1)[0].strip(" \t\\\r\n").split("==", 1)
+#     requirements[line[0]] = line[1]
 
 setup(
 	name='viur-datastore',
@@ -24,7 +28,7 @@ setup(
 	package_dir={'': 'src'},
 	python_requires=">=3.10",
 	cmdclass={'build_ext': build_ext},
-	install_requires=[f"{k}=={v}" for k, v in sorted(requirements.items(), key=lambda k: k[0].lower())],
+	install_requires=["cython", "cysimdjson"],
 	ext_modules=cythonize([Extension("viur.datastore.transport", ["src/viur/datastore/transport.pyx"], language="c++", extra_compile_args=["-std=c++11"])]),
 	classifiers=[
 		"Programming Language :: Python :: 3",
