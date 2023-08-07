@@ -826,7 +826,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 						return res
 				finally:  # Ensure, currentTransaction is always set back to none
 					currentTransaction.set(None)
-		except CollisionError:  # Got a collision; retry the entire transaction
+		except CollisionError, AbortedError:  # Got a collision or is aborted; retry the entire transaction
 			sleep(2 ** exponential_backoff)
 	raise CollisionError("All retries are exhausted for this transaction") # If we made it here, all tries are exhausted
 
