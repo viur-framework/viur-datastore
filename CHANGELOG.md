@@ -10,6 +10,14 @@
 
 ### Remove
 
+## [1.3.11]
+
+### Fix
+
+thx to @ArneGudermann and @skoegl for the contribution
+
+- Fix RunInTransaction Fix (#32)
+
 ## [1.3.10]
 
 ### Fix
