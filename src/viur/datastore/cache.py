@@ -1,5 +1,5 @@
 import sys
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 from viur.datastore.config import conf
 from viur.datastore.types import Entity, Key
@@ -45,9 +45,9 @@ def delete(keys: Union[str, Key, List[str], List[Key]]):
 		keys = keys[memcache_max_batch_size:]
 
 
-def get_size(obj):
+def get_size(obj: Any) -> int:
 	"""
-		Count the size of an object
+		Utility function that counts the size of an object in bytes.
 	"""
 	if isinstance(obj, dict):
 		return sum([get_size([k, v]) for k, v in obj.items()])

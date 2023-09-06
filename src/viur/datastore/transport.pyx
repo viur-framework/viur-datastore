@@ -594,7 +594,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	res = {}
 	res_from_cache = {}
 	res_from_db = {}
-	untouch_keys = copy(keys)
+	untouched_keys = copy(keys)
 	while keys:
 		keys_for_request = keys[:300]
 
@@ -606,9 +606,10 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 
 		missing_keys = [key for key in keys_for_request if key not in res_from_cache.keys()]
 		if len(missing_keys)== 0:
+			# We had all keys in the memcache we can fetch the next batch now.
 			keys = keys[300:]
 			continue
-		requestedKeys = [
+		requested_keys = [
 			{
 				"partitionId": {
 					"project_id": projectID,
@@ -618,7 +619,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 			for x in missing_keys]
 		postData = {
 			"readOptions": readOptions,
-			"keys": requestedKeys,
+			"keys": requested_keys,
 		}
 		req = authenticatedRequest(
 			url="https://datastore.googleapis.com/v1/projects/%s:lookup" % projectID,
@@ -640,16 +641,15 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 
 		else:
 			keys = keys[300:]
-	res |= res_from_cache
-	res |= res_from_db
+	res = res_from_db | res_from_cache
 	if conf["use_memcache_client"]:
 		# Cache only the entities form db.
 		cache.set({str(key): value for key, value in res_from_db.items()})
 
 	if not isMulti:
-		return res.get(untouch_keys[0])
+		return res.get(untouched_keys[0])
 	else:
-		return [res.get(key) for key in untouch_keys]  # Sort by order of incoming keys
+		return [res.get(key) for key in untouched_keys]  # Sort by order of incoming keys
 
 def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 	"""
