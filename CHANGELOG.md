@@ -10,6 +10,22 @@
 
 ### Remove
 
+## [1.3.11]
+
+### Fix
+
+thx to @ArneGudermann and @skoegl for the contribution
+
+- Fix RunInTransaction Fix (#32)
+
+## [1.3.10]
+
+### Fix
+
+Thx to @ArneGudermann for the contribution
+
+- Add AbortedError in RunInTransaction (#31)
+
 ## [1.3.9]
 
 Thx to @XeoN-GHMB for the contribution
