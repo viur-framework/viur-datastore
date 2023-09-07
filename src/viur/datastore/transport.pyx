@@ -601,11 +601,11 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 		if conf["use_memcache_client"]:
 			res_from_cache = cache.get(keys_for_request)
 			# Convert the keys back to "class" representation
-			res_from_cache = {Key.from_legacy_urlsafe(key): value for key, value in
-							  res_from_cache.items()}
+			res_from_cache = {Key.from_legacy_urlsafe(key): value 
+			                  for key, value in res_from_cache.items()}
 
 		missing_keys = [key for key in keys_for_request if key not in res_from_cache.keys()]
-		if len(missing_keys)== 0:
+		if not missing_keys:
 			# We had all keys in the memcache we can fetch the next batch now.
 			keys = keys[300:]
 			continue
@@ -633,11 +633,11 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 
 		if (element.at_pointer("/deferred").error() == SUCCESS):
 			deferred_keys = toPythonStructure(element.at_key("deferred"))
-			missing_keys_paths=[keyToPath(key) for key in missing_keys]
+			missing_keys_paths = [keyToPath(key) for key in missing_keys]
 			keys = keys[300:]
-			for i,deferred_key in enumerate(deferred_keys):
+			for i, deferred_key in enumerate(deferred_keys):
 				if deferred_key in missing_keys_paths:
-					keys.insert(0,missing_keys[i])
+					keys.insert(0, missing_keys[i])
 
 		else:
 			keys = keys[300:]
@@ -703,7 +703,7 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		if arrayElem.size() != abs(len(keys)):
 			print(req.content)
 			raise ValueError("Invalid number of mutation-results received")
-	if conf["use_memcache_client"] :
+	if conf["use_memcache_client"]:
 		cache.delete([str(key) for key in keys])
 
 def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:

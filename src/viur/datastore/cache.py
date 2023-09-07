@@ -4,13 +4,13 @@ from typing import Any, Dict, List, Union
 from viur.datastore.config import conf
 from viur.datastore.types import Entity, Key
 
-memcache_max_batch_size = 30
-memcache_namespace = "viur-datastore"
-memcache_timeout = 60 * 60
-memcache_max_size = 1_000_000
+MEMCACHE_MAX_BATCH_SIZE = 30
+MEMCACHE_NAMESPACE = "viur-datastore"
+MEMCACHE_TIMEOUT = 60 * 60
+MEMCACHE_MAX_SIZE = 1_000_000
 
 
-def get(keys: Union[str, Key, List[str], List[Key]]):
+def get(keys: Union[str, Key, List[str], List[Key]]) -> dict:
 	if not isinstance(keys, list):
 		keys = [keys]
 	keys = [str(key) for key in keys]  # Enforce that all keys are strings
@@ -36,7 +36,7 @@ def set(cache_data: Union[Dict, List[Entity]]):
 		keys = keys[memcache_max_batch_size:]
 
 
-def delete(keys: Union[str, Key, List[str], List[Key]]):
+def delete(keys: Union[str, Key, List[str], List[Key]]) -> None:
 	if not isinstance(keys, list):
 		keys = [keys]
 	keys = [str(key) for key in keys]  # Enforce that all keys are strings
@@ -50,8 +50,8 @@ def get_size(obj: Any) -> int:
 		Utility function that counts the size of an object in bytes.
 	"""
 	if isinstance(obj, dict):
-		return sum([get_size([k, v]) for k, v in obj.items()])
+		return sum(get_size([k, v]) for k, v in obj.items())
 	elif isinstance(obj, list):
-		return sum([get_size(x) for x in obj])
+		return sum(get_size(x) for x in obj)
 
 	return sys.getsizeof(obj)
