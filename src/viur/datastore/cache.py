@@ -17,23 +17,26 @@ def get(keys: Union[str, Key, List[str], List[Key]]) -> dict:
 	res = {}
 
 	while keys:
-		res |= conf["memcache_client"].get_multi(keys[:memcache_max_batch_size], namespace=memcache_namespace)
-		keys = keys[memcache_max_batch_size:]
+		res |= conf["memcache_client"].get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
+		keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
 	return res
 
 
-def set(cache_data: Union[Dict, List[Entity]]):
-	if isinstance(cache_data, dict):
-		# Add only values to cache <= memcache_max_size (1.000.000)
-		cache_data = {str(key): value for key, value in cache_data.items() if get_size(value) <= memcache_max_size}
-	elif isinstance(cache_data, list):
-		# Add only values to cache <= memcache_max_size (1.000.000)
-		cache_data = {str(item.key): item for item in cache_data if get_size(item) <= memcache_max_size}
+def set(cache_data: Union[Entity, Dict[Key, Entity], List[Entity]]):
+	if isinstance(cache_data, list):
+		cache_data = {item.key: item for item in cache_data}
+	elif isinstance(cache_data, Entity):
+		cache_data = {cache_data.key: cache_data}
+	elif not isinstance(cache_data, dict):
+		raise TypeError(f"Invalid type {type(cache_data)}. Expected a db.Entity, list or dict.")
+	# Add only values to cache <= MEMCACHE_MAX_SIZE (1.000.000)
+	cache_data = {str(key): value for key, value in cache_data.items() if get_size(value) <= MEMCACHE_MAX_SIZE}
+
 	keys = list(cache_data.keys())
 	while keys:
-		data = {key: cache_data[key] for key in keys[:memcache_max_batch_size]}
-		conf["memcache_client"].set_multi(data, namespace=memcache_namespace, time=memcache_timeout)
-		keys = keys[memcache_max_batch_size:]
+		data = {key: cache_data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
+		conf["memcache_client"].set_multi(data, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
+		keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
 
 
 def delete(keys: Union[str, Key, List[str], List[Key]]) -> None:
@@ -41,8 +44,8 @@ def delete(keys: Union[str, Key, List[str], List[Key]]) -> None:
 		keys = [keys]
 	keys = [str(key) for key in keys]  # Enforce that all keys are strings
 	while keys:
-		conf["memcache_client"].delete_multi(keys[:memcache_max_batch_size], namespace=memcache_namespace)
-		keys = keys[memcache_max_batch_size:]
+		conf["memcache_client"].delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
+		keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
 
 
 def get_size(obj: Any) -> int:

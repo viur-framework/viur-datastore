@@ -601,7 +601,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 		if conf["use_memcache_client"]:
 			res_from_cache = cache.get(keys_for_request)
 			# Convert the keys back to "class" representation
-			res_from_cache = {Key.from_legacy_urlsafe(key): value 
+			res_from_cache = {Key.from_legacy_urlsafe(key): value
 			                  for key, value in res_from_cache.items()}
 
 		missing_keys = [key for key in keys_for_request if key not in res_from_cache.keys()]
@@ -765,7 +765,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			preincrement(arrayIt)
 			idx += 1
 		if conf["use_memcache_client"]:
-			# iter over all entities and write them to the chache
+			# iter over all entities and write them to the cache
 			cache.set(entities)
 	return entities
 
