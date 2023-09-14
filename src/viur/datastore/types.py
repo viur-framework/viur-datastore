@@ -176,3 +176,4 @@ class QueryDefinition:
 	startCursor: Optional[str] = None  # If set, we'll only return entities that appear after this cursor in the index.
 	endCursor: Optional[str] = None  # If set, we'll only return entities up to this cursor in the index.
 	currentCursor: Optional[str] = None  # Will be set after this query has been run, pointing after the last entity returned
+	keys_only: bool = False

@@ -472,6 +472,8 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 				"limit": limit - len(res)
 			},
 		}
+		if queryDefinition.keys_only:
+			postData["query"]["projection"] = [{"property": {"name": "__key__"}}]
 		if queryDefinition.filters:
 			filterList = []
 			for k, v in queryDefinition.filters.items():

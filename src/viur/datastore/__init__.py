@@ -23,6 +23,8 @@ from viur.datastore.utils import (
 	endDataAccessLog)
 
 
+from viur.datastore.transaction import Transaction
+
 
 import logging
 # silencing requests' debugging
@@ -70,4 +72,5 @@ __all__ = [
 	"UnavailableError",
 	"NoMutationResultsError",
 	"is_viur_datastore_request_ok",
+	"Transaction"
 ]

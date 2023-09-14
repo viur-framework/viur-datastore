@@ -525,7 +525,7 @@ class Query(object):
 			return list(Get([x.key.parent for x in resultList]))
 		return resultList
 
-	def run(self, limit: int = -1) -> List[Entity]:
+	def run(self, limit: int = -1, keys_only=False) -> List[Entity]:
 		"""
 			Run this query.
 
@@ -577,6 +577,7 @@ class Query(object):
 				# We must merge (and sort) the results ourself
 				res = self._mergeMultiQueryResults(res)
 		else:  # We have just one single query
+			self.queries.keys_only=keys_only
 			res = self._fixKind(self._runSingleFilterQuery(self.queries, limit if limit != -1 else self.queries.limit))
 		if res:
 			self._lastEntry = res[-1]
