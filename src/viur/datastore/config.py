@@ -24,4 +24,5 @@ conf = {
 		"UNAVAILABLE"
 	},
 	"use_memcache_client": False,
+	"memcache_client": None,
 }
