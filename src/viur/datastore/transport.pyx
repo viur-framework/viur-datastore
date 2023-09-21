@@ -644,7 +644,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	res = res_from_db | res_from_cache
 	if conf["use_memcache_client"]:
 		# Cache only the entities form db.
-		cache.set({str(key): value for key, value in res_from_db.items()})
+		cache.put({str(key): value for key, value in res_from_db.items()})
 
 	if not isMulti:
 		return res.get(untouched_keys[0])
@@ -766,7 +766,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			idx += 1
 		if conf["use_memcache_client"]:
 			# iter over all entities and write them to the cache
-			cache.set(entities)
+			cache.put(entities)
 	return entities
 
 

@@ -1,4 +1,5 @@
-import pprint
+import logging
+
 import sys
 from typing import Any, Dict, List, Union
 
@@ -9,7 +10,6 @@ MEMCACHE_MAX_BATCH_SIZE = 30
 MEMCACHE_NAMESPACE = "viur-datastore"
 MEMCACHE_TIMEOUT = 60 * 60
 MEMCACHE_MAX_SIZE = 1_000_000
-
 
 """
 
@@ -27,53 +27,81 @@ MEMCACHE_MAX_SIZE = 1_000_000
 """
 
 __all__ = [
-"MEMCACHE_MAX_BATCH_SIZE",
-"MEMCACHE_NAMESPACE",
-"MEMCACHE_TIMEOUT",
-"MEMCACHE_MAX_SIZE",
-"get",
-"set",
-"delete",
+	"MEMCACHE_MAX_BATCH_SIZE",
+	"MEMCACHE_NAMESPACE",
+	"MEMCACHE_TIMEOUT",
+	"MEMCACHE_MAX_SIZE",
+	"get",
+	"put",
+	"delete",
 ]
 
-def get(keys: Union[str, Key, List[str], List[Key]]) -> dict:
+
+def get(keys: Union[str, Key, List[str], List[Key]]) -> Dict[str, dict]:
+	"""
+		Reads data form the memcache.
+		:param Union[str, Key, List[str], List[Key]] keys: Unique identifier(s) for one or more entry(s).
+		:return: A dict with the entry(s) that found in the memcache.
+	"""
+	if not check_for_memcache():
+		return {}
 	if not isinstance(keys, list):
 		keys = [keys]
 	keys = [str(key) for key in keys]  # Enforce that all keys are strings
 	res = {}
-	pprint.pprint(f"try get {keys=}")
 	while keys:
 		res |= conf["memcache_client"].get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
 		keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
-	pprint.pprint(f"get {res=}")
 	return res
 
 
-def set(cache_data: Union[Entity, Dict[Key, Entity], List[Entity]]):
-	if isinstance(cache_data, list):
-		cache_data = {item.key: item for item in cache_data}
-	elif isinstance(cache_data, Entity):
-		cache_data = {cache_data.key: cache_data}
-	elif not isinstance(cache_data, dict):
-		raise TypeError(f"Invalid type {type(cache_data)}. Expected a db.Entity, list or dict.")
-	# Add only values to cache <= MEMCACHE_MAX_SIZE (1.000.000)
-	cache_data = {str(key): value for key, value in cache_data.items() if get_size(value) <= MEMCACHE_MAX_SIZE}
+def put(data: Union[Entity, Dict[Key, Entity], List[Entity]]):
+	"""
+		Writes Data to the memcache.
 
-	keys = list(cache_data.keys())
-	pprint.pprint(f"set  {keys=}")
+		:param Union[Entity, Dict[Key, Entity], List[Entity]] data: Data to write
+	"""
+	if not check_for_memcache():
+		return
+	if isinstance(data, list):
+		data = {item.key: item for item in data}
+	elif isinstance(data, Entity):
+		data = {data.key: data}
+	elif not isinstance(data, dict):
+		raise TypeError(f"Invalid type {type(data)}. Expected a db.Entity, list or dict.")
+	# Add only values to cache <= MEMMAX_SIZE (1.000.000)
+	data = {str(key): value for key, value in data.items() if get_size(value) <= MEMCACHE_MAX_SIZE}
+
+	keys = list(data.keys())
 	while keys:
-		data = {key: cache_data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
-		conf["memcache_client"].set_multi(data, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
+		data_batch = {key: data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
+		conf["memclient"].set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
 		keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
 
 
 def delete(keys: Union[str, Key, List[str], List[Key]]) -> None:
+	"""
+		Deletes an Entry form memcache.
+
+		:param Union[str, Key, List[str], List[Key]] keys: Unique identifier(s) for one or more entry(s).
+	"""
+	if not check_for_memcache():
+		return
 	if not isinstance(keys, list):
 		keys = [keys]
 	keys = [str(key) for key in keys]  # Enforce that all keys are strings
 	while keys:
 		conf["memcache_client"].delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
 		keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
+
+
+def flush():
+	"""
+		Deletes everything in memcache.
+	"""
+	if not check_for_memcache():
+		return
+	conf["memcache_client"].flush_all()
 
 
 def get_size(obj: Any) -> int:
@@ -86,3 +114,10 @@ def get_size(obj: Any) -> int:
 		return sum(get_size(x) for x in obj)
 
 	return sys.getsizeof(obj)
+
+
+def check_for_memcache() -> bool:
+	if conf["memcache_client"] is None:
+		logging.warning(f"""conf["memcache_client"] is 'None'. It can not be used.""")
+		return False
+	return True
