@@ -23,6 +23,8 @@ conf = {
 		"UNAUTHENTICATED",
 		"UNAVAILABLE"
 	},
+	# Set this to 'True' and the viur data store will cache the reads and writes.
 	"use_memcache_client": False,
+	# A Client form the Google Memcache Library.
 	"memcache_client": None,
 }

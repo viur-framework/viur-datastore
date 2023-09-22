@@ -49,9 +49,12 @@ def get(keys: Union[str, Key, List[str], List[Key]]) -> Dict[str, dict]:
 		keys = [keys]
 	keys = [str(key) for key in keys]  # Enforce that all keys are strings
 	res = {}
-	while keys:
-		res |= conf["memcache_client"].get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
-		keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
+	try:
+		while keys:
+			res |= conf["memcache_client"].get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
+			keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
+	except Exception as e:
+		logging.error(f"""Failed to get keys form the memcache with {e=}""")
 	return res
 
 
@@ -73,10 +76,13 @@ def put(data: Union[Entity, Dict[Key, Entity], List[Entity]]):
 	data = {str(key): value for key, value in data.items() if get_size(value) <= MEMCACHE_MAX_SIZE}
 
 	keys = list(data.keys())
-	while keys:
-		data_batch = {key: data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
-		conf["memclient"].set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
-		keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
+	try:
+		while keys:
+			data_batch = {key: data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
+			conf["memclient"].set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
+			keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
+	except Exception as e:
+		logging.error(f"""Failed to put data to the memcache with {e=}""")
 
 
 def delete(keys: Union[str, Key, List[str], List[Key]]) -> None:
@@ -90,9 +96,12 @@ def delete(keys: Union[str, Key, List[str], List[Key]]) -> None:
 	if not isinstance(keys, list):
 		keys = [keys]
 	keys = [str(key) for key in keys]  # Enforce that all keys are strings
-	while keys:
-		conf["memcache_client"].delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
-		keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
+	try:
+		while keys:
+			conf["memcache_client"].delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
+			keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
+	except Exception as e:
+		logging.error(f"""Failed to delete keys form the memcache with {e=}""")
 
 
 def flush():
@@ -101,7 +110,10 @@ def flush():
 	"""
 	if not check_for_memcache():
 		return
-	conf["memcache_client"].flush_all()
+	try:
+		conf["memcache_client"].flush_all()
+	except Exception as e:
+		logging.error(f"""Failed to flush the memcache with {e=}""")
 
 
 def get_size(obj: Any) -> int:
