@@ -598,7 +598,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	while keys:
 		keys_for_request = keys[:300]
 
-		if conf["use_memcache_client"]:
+		if conf["memcache_client"] is not None:
 			res_from_cache = cache.get(keys_for_request)
 			# Convert the keys back to "class" representation
 			res_from_cache = {Key.from_legacy_urlsafe(key): value
@@ -642,7 +642,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 		else:
 			keys = keys[300:]
 	res = res_from_db | res_from_cache
-	if conf["use_memcache_client"]:
+	if conf["memcache_client"] is not None:
 		# Cache only the entities form db.
 		cache.put({str(key): value for key, value in res_from_db.items()})
 
@@ -703,7 +703,7 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		if arrayElem.size() != abs(len(keys)):
 			print(req.content)
 			raise ValueError("Invalid number of mutation-results received")
-	if conf["use_memcache_client"]:
+	if conf["memcache_client"] is not None:
 		cache.delete([str(key) for key in keys])
 
 def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
@@ -764,7 +764,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			entities[idx].version = toPyStr(innerArrayElem.at_key("version").get_string())
 			preincrement(arrayIt)
 			idx += 1
-		if conf["use_memcache_client"]:
+		if conf["memcache_client"] is not None:
 			# iter over all entities and write them to the cache
 			cache.put(entities)
 	return entities
