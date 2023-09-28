@@ -611,15 +611,15 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 			url="https://datastore.googleapis.com/v1/projects/%s:lookup" % projectID,
 			data=json.dumps(postData).encode("UTF-8"),
 		)
-		assert req.status_code == 200
-		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
-		element = parser.parse(data_ptr, pysize, 1)
-		if (element.at_pointer("/found").error() == SUCCESS):
-			res.update(toEntityStructure(element.at_key("found"), isInitial=True))
-		if (element.at_pointer("/deferred").error() == SUCCESS):
-			keyList = toPythonStructure(element.at_key("deferred")) + keyList[300:]
-		else:
-			keyList = keyList[300:]
+		if is_viur_datastore_request_ok(req):
+			assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+			element = parser.parse(data_ptr, pysize, 1)
+			if (element.at_pointer("/found").error() == SUCCESS):
+				res.update(toEntityStructure(element.at_key("found"), isInitial=True))
+			if (element.at_pointer("/deferred").error() == SUCCESS):
+				keyList = toPythonStructure(element.at_key("deferred")) + keyList[300:]
+			else:
+				keyList = keyList[300:]
 	if not isMulti:
 		return res.get(keys[0])
 	else:
@@ -882,27 +882,27 @@ def AllocateIDs(keys: Union[Key, List[Key]]) -> Union[Key, List[Key]]:
 		url="https://datastore.googleapis.com/v1/projects/%s:allocateIds" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
-	assert req.status_code == 200
-	assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
-	element = parser.parse(data_ptr, pysize, 1)
-	res = []
-	if (element.at_pointer("/keys").error() == SUCCESS):
-		arrayElem = element.at_key("keys").get_array()
-		arrayIt = arrayElem.begin()
-		while arrayIt != arrayElem.end():
-			innerArrayElem = dereference(arrayIt)
-			res.append( parseKey(innerArrayElem))
-			preincrement(arrayIt)
-		if not res:
-			raise ValueError("Empty response received from Datastore API")
-		elif not isMulti:
-			return res[0]
+	if is_viur_datastore_request_ok(req):
+		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+		element = parser.parse(data_ptr, pysize, 1)
+		res = []
+		if (element.at_pointer("/keys").error() == SUCCESS):
+			arrayElem = element.at_key("keys").get_array()
+			arrayIt = arrayElem.begin()
+			while arrayIt != arrayElem.end():
+				innerArrayElem = dereference(arrayIt)
+				res.append( parseKey(innerArrayElem))
+				preincrement(arrayIt)
+			if not res:
+				raise ValueError("Empty response received from Datastore API")
+			elif not isMulti:
+				return res[0]
+			else:
+				return res
 		else:
-			return res
-	else:
-		logging.error("Invalid data received from Datastore API")
-		logging.error(req.content)
-		raise ValueError("Invalid data received from Datastore API")
+			logging.error("Invalid data received from Datastore API")
+			logging.error(req.content)
+			raise ValueError("Invalid data received from Datastore API")
 
 def Count(kind: str = None, up_to= 2 ** 63 - 1, queryDefinition: QueryDefinition = None) -> Union[Key, List[Key]]:
 	"""
@@ -981,12 +981,12 @@ def Count(kind: str = None, up_to= 2 ** 63 - 1, queryDefinition: QueryDefinition
 		url="https://datastore.googleapis.com/v1/projects/%s:runAggregationQuery" % projectID,
 		data=json.dumps(post_data).encode("UTF-8"),
 	)
-	assert req.status_code == 200
-	assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
-	element = parser.parse(data_ptr, pysize, 1)
-	if element.at_pointer("/batch").error() != SUCCESS:
-		print("INVALID RESPONSE RECEIVED")
-		pprint.pprint(json.loads(req.content))
-	element = element.at_key("batch")
-	# TODO  maybe this can be solved more elegant
-	return int(toPythonStructure(element)["aggregationResults"][0]["aggregateProperties"]["property_1"]["integerValue"])
+	if is_viur_datastore_request_ok(req):
+		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+		element = parser.parse(data_ptr, pysize, 1)
+		if element.at_pointer("/batch").error() != SUCCESS:
+			print("INVALID RESPONSE RECEIVED")
+			pprint.pprint(json.loads(req.content))
+		element = element.at_key("batch")
+		# TODO  maybe this can be solved more elegant
+		return int(toPythonStructure(element)["aggregationResults"][0]["aggregateProperties"]["property_1"]["integerValue"])
