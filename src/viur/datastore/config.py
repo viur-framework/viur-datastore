@@ -22,5 +22,7 @@ conf = {
 		"RESOURCE_EXHAUSTED",
 		"UNAUTHENTICATED",
 		"UNAVAILABLE"
-	}
+	},
+	# A Client form the Google Memcache Library.
+	"memcache_client": None,
 }
