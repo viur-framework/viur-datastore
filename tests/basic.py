@@ -119,5 +119,28 @@ class BasicFunctionTest(BaseTestClass):
 		self.assertEqual(datastore.Count(testKindName), 10)
 		self.assertEqual(datastore.Count(testKindName, 4), 4)
 
+	def test_key_init(self) -> None:
+		key = datastore.Key(testKindName, 42)
+		self.assertIsInstance(key.id, int)
+		self.assertEqual(key.id, 42)
+		self.assertIsNone(key.name)
+		self.assertIsNone(key.parent)
+
+		key = datastore.Key(testKindName, "1337")
+		self.assertIsInstance(key.id, int)
+		self.assertEqual(key.id, 1337)
+		self.assertIsNone(key.name)
+		self.assertIsNone(key.parent)
+
+		key = datastore.Key(testKindName, "foo")
+		self.assertEqual(key.name, "foo")
+		self.assertIsNone(key.id)
+		self.assertIsNone(key.parent)
+
+		parent_key = datastore.Key(testKindName, "foo")
+		key = datastore.Key(testKindName, "bar", parent_key)
+		self.assertEqual(key.name, "bar")
+		self.assertEqual(key.parent, parent_key)
+
 if __name__ == '__main__':
 	unittest.main()

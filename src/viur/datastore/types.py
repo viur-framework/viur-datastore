@@ -74,8 +74,10 @@ class Key:
 		if isinstance(subKey, int):
 			self.id = subKey
 		elif isinstance(subKey, str):
-			assert not subKey.isdigit(), "Digit-Only string keys are not permitted"
-			self.name = subKey
+			if subKey.isdigit():
+				self.id = int(subKey)
+			else:
+				self.name = subKey
 		self.parent = parent
 
 	@property

@@ -1,8 +1,8 @@
 # distutils: sources = src/viur/datastore/simdjson.cpp
 # distutils: language = c++
 # cython: language_level=3
-import base64
-
+from copy import copy
+from viur.datastore import cache
 import google.auth
 import requests
 from libcpp cimport bool as boolean_type
@@ -19,8 +19,6 @@ from typing import Union, List, Any
 from requests.exceptions import ConnectionError as RequestsConnectionError
 import logging
 from time import sleep
-
-
 ## Start of CPP-Imports required for the simdjson->python bridge
 
 cdef extern from "Python.h":
@@ -586,14 +584,7 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	accessLog = currentDbAccessLog.get()
 	if isinstance(accessLog, set):
 		accessLog.update(set(keys))
-	keyList = [
-		{
-			"partitionId": {
-				"project_id": projectID,
-			},
-			"path": keyToPath(x)
-		}
-		for x in keys]
+
 
 	currentTxn = currentTransaction.get()
 	if currentTxn:
@@ -601,29 +592,66 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 	else:
 		readOptions = {"readConsistency": "STRONG"}
 	res = {}
-	while keyList:
-		requestedKeys = keyList[:300]
+	res_from_cache = {}
+	res_from_db = {}
+	untouched_keys = copy(keys)
+	while keys:
+		keys_for_request = keys[:300]
+
+		if conf["memcache_client"] is not None:
+			res_from_cache = cache.get(keys_for_request)
+			# Convert the keys back to "class" representation
+			res_from_cache = {Key.from_legacy_urlsafe(key): value
+			                  for key, value in res_from_cache.items()}
+
+		missing_keys = [key for key in keys_for_request if key not in res_from_cache.keys()]
+		if not missing_keys:
+			# We had all keys in the memcache we can fetch the next batch now.
+			keys = keys[300:]
+			continue
+		requested_keys = [
+			{
+				"partitionId": {
+					"project_id": projectID,
+				},
+				"path": keyToPath(x)
+			}
+			for x in missing_keys]
 		postData = {
 			"readOptions": readOptions,
-			"keys": requestedKeys,
+			"keys": requested_keys,
 		}
 		req = authenticatedRequest(
 			url="https://datastore.googleapis.com/v1/projects/%s:lookup" % projectID,
 			data=json.dumps(postData).encode("UTF-8"),
 		)
+
 		if is_viur_datastore_request_ok(req):
 			assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
 			element = parser.parse(data_ptr, pysize, 1)
 			if (element.at_pointer("/found").error() == SUCCESS):
-				res.update(toEntityStructure(element.at_key("found"), isInitial=True))
+				res_from_db.update(toEntityStructure(element.at_key("found"), isInitial=True))
+
 			if (element.at_pointer("/deferred").error() == SUCCESS):
-				keyList = toPythonStructure(element.at_key("deferred")) + keyList[300:]
+				deferred_keys = toPythonStructure(element.at_key("deferred"))
+				missing_keys_paths = [keyToPath(key) for key in missing_keys]
+				keys = keys[300:]
+				for i, deferred_key in enumerate(deferred_keys):
+					if deferred_key in missing_keys_paths:
+						keys.insert(0, missing_keys[i])
+
 			else:
-				keyList = keyList[300:]
+				keys = keys[300:]
+	res = res_from_db | res_from_cache
+	if conf["memcache_client"] is not None:
+		# Cache only the entities form db.
+		cache.put({str(key): value for key, value in res_from_db.items()})
+
+
 	if not isMulti:
-		return res.get(keys[0])
+		return res.get(untouched_keys[0])
 	else:
-		return [res.get(x) for x in keys]  # Sort by order of incoming keys
+		return [res.get(key) for key in untouched_keys]  # Sort by order of incoming keys
 
 def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 	"""
@@ -677,6 +705,8 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		if arrayElem.size() != abs(len(keys)):
 			print(req.content)
 			raise ValueError("Invalid number of mutation-results received")
+	if conf["memcache_client"] is not None:
+		cache.delete([str(key) for key in keys])
 
 def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 	"""
@@ -736,6 +766,9 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			entities[idx].version = toPyStr(innerArrayElem.at_key("version").get_string())
 			preincrement(arrayIt)
 			idx += 1
+		if conf["memcache_client"] is not None:
+			# iter over all entities and write them to the cache
+			cache.put(entities)
 	return entities
 
 
