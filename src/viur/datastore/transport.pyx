@@ -102,7 +102,7 @@ _http_internal = google.auth.transport.requests.AuthorizedSession(
 	refresh_timeout=300,
 )
 
-def authenticatedRequest(url:str, data: bytes) -> requests.Response:
+def authenticated_request(url:str, data: bytes) -> requests.Response:
 	"""
 		Runs one http request to the datastore rest api, authenticated with the current projects service account.
 		Will retry up to three times in case the connection cannot be established the first time.
@@ -528,17 +528,17 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 			postData["query"]["startCursor"] = internalStartCursor or queryDefinition.startCursor
 		if queryDefinition.endCursor:
 			postData["query"]["endCursor"] = queryDefinition.endCursor
-		req = authenticatedRequest(
+		resp = authenticated_request(
 			url="https://datastore.googleapis.com/v1/projects/%s:runQuery" % projectID,
 			data=json.dumps(postData).encode("UTF-8"),
 		)
 
-		is_viur_datastore_request_ok(req)
-		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+		is_viur_datastore_request_ok(resp)
+		assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if element.at_pointer("/batch").error() != SUCCESS:
 			print("INVALID RESPONSE RECEIVED")
-			pprint.pprint(json.loads(req.content))
+			pprint.pprint(json.loads(resp.content))
 		#	res.update(toEntityStructure(element.at_key("batch"), isInitial=True))
 		element = element.at_key("batch")
 		if element.at_pointer("/entityResults").error() == SUCCESS:
@@ -621,13 +621,13 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
 			"readOptions": readOptions,
 			"keys": requested_keys,
 		}
-		req = authenticatedRequest(
+		resp = authenticated_request(
 			url="https://datastore.googleapis.com/v1/projects/%s:lookup" % projectID,
 			data=json.dumps(postData).encode("UTF-8"),
 		)
 
-		if is_viur_datastore_request_ok(req):
-			assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+		if is_viur_datastore_request_ok(resp):
+			assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 			element = parser.parse(data_ptr, pysize, 1)
 			if (element.at_pointer("/found").error() == SUCCESS):
 				res_from_db.update(toEntityStructure(element.at_key("found"), isInitial=True))
@@ -691,19 +691,19 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		# Insert placeholders into affectedEntities as we receive a mutation-result for each key deleted
 		currentTxn["affectedEntities"].extend([None] * len(keys))
 		return
-	req = authenticatedRequest(
+	resp = authenticated_request(
 		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
-	if is_viur_datastore_request_ok(req):
-		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+	if is_viur_datastore_request_ok(resp):
+		assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
-			pprint(req.content)
+			pprint(resp.content)
 			raise NoMutationResultsError("No mutation results received")
 		arrayElem = element.at_key("mutationResults").get_array()
 		if arrayElem.size() != abs(len(keys)):
-			print(req.content)
+			print(resp.content)
 			raise ValueError("Invalid number of mutation-results received")
 	if conf["memcache_client"] is not None:
 		cache.delete([str(key) for key in keys])
@@ -742,20 +742,20 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 		currentTxn["mutations"].extend(postData["mutations"])
 		currentTxn["affectedEntities"].extend(entities)
 		return
-	req = authenticatedRequest(
+	resp = authenticated_request(
 		url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
 
-	if is_viur_datastore_request_ok(req):
-		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+	if is_viur_datastore_request_ok(resp):
+		assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
-			print(req.content)
+			print(resp.content)
 			raise ValueError("No mutation-results received")
 		arrayElem = element.at_key("mutationResults").get_array()
 		if arrayElem.size() != abs(len(entities)):
-			pprint(req.content)
+			pprint(resp.content)
 			raise NoMutationResultsError("Invalid number of mutation-results received")
 		arrayIt = arrayElem.begin()
 		idx = 0
@@ -804,12 +804,12 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 					"readWrite": txnOptions
 				}
 			}
-			req = authenticatedRequest(
+			resp = authenticated_request(
 				url="https://datastore.googleapis.com/v1/projects/%s:beginTransaction" % projectID,
 				data=json.dumps(postData).encode("UTF-8"),
 			)
-			if is_viur_datastore_request_ok(req):
-				txnKey = json.loads(req.content)["transaction"]
+			if is_viur_datastore_request_ok(resp):
+				txnKey = json.loads(resp.content)["transaction"]
 				try:
 					currentTxn = {"key": txnKey, "mutations": [], "affectedEntities": []}
 					currentTransaction.set(currentTxn)
@@ -825,20 +825,20 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							"transaction": txnKey,
 							"mutations": currentTxn["mutations"]
 						}
-						req = authenticatedRequest(
+						resp = authenticated_request(
 							url="https://datastore.googleapis.com/v1/projects/%s:commit" % projectID,
 							data=json.dumps(postData).encode("UTF-8"),
 						)
 
-						is_viur_datastore_request_ok(req)
-						assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+						is_viur_datastore_request_ok(resp)
+						assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
 						if (element.at_pointer("/mutationResults").error() != SUCCESS):
-							pprint(req.content)
+							pprint(resp.content)
 							raise NoMutationResultsError("No mutation-results received")
 						arrayElem = element.at_key("mutationResults").get_array()
 						if arrayElem.size() != abs(len(currentTxn["affectedEntities"])):
-							print(req.content)
+							print(resp.content)
 							raise ViurDatastoreError("Invalid number of mutation-results received")
 						arrayIt = arrayElem.begin()
 						idx = 0
@@ -847,7 +847,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							if innerArrayElem.at_pointer("/key").error() == SUCCESS:  # We got a new key assigned
 								affectedEntity = currentTxn["affectedEntities"][idx]
 								if not affectedEntity:
-									print(req.content)
+									print(resp.content)
 									raise ViurDatastoreError("Received an unexpected key-update")
 								affectedEntity.key = parseKey(innerArrayElem.at_key("key"))
 								affectedEntity.version = toPyStr(innerArrayElem.at_key("version").get_string())
@@ -877,7 +877,7 @@ def _rollbackTxn(txnKey: str):
 	postData = {
 		"transaction": txnKey
 	}
-	req = authenticatedRequest(
+	resp = authenticated_request(
 		url="https://datastore.googleapis.com/v1/projects/%s:rollback" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
@@ -911,12 +911,12 @@ def AllocateIDs(keys: Union[Key, List[Key]]) -> Union[Key, List[Key]]:
 	postData = {
 		"keys": requestedKeys,
 	}
-	req = authenticatedRequest(
+	resp = authenticated_request(
 		url="https://datastore.googleapis.com/v1/projects/%s:allocateIds" % projectID,
 		data=json.dumps(postData).encode("UTF-8"),
 	)
-	if is_viur_datastore_request_ok(req):
-		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+	if is_viur_datastore_request_ok(resp):
+		assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		res = []
 		if (element.at_pointer("/keys").error() == SUCCESS):
@@ -934,7 +934,7 @@ def AllocateIDs(keys: Union[Key, List[Key]]) -> Union[Key, List[Key]]:
 				return res
 		else:
 			logging.error("Invalid data received from Datastore API")
-			logging.error(req.content)
+			logging.error(resp.content)
 			raise ValueError("Invalid data received from Datastore API")
 
 def Count(kind: str = None, up_to= 2 ** 63 - 1, queryDefinition: QueryDefinition = None) -> Union[Key, List[Key]]:
@@ -1010,16 +1010,16 @@ def Count(kind: str = None, up_to= 2 ** 63 - 1, queryDefinition: QueryDefinition
 						"filters": filterList
 					}
 				}
-	req = authenticatedRequest(
+	resp = authenticated_request(
 		url="https://datastore.googleapis.com/v1/projects/%s:runAggregationQuery" % projectID,
 		data=json.dumps(post_data).encode("UTF-8"),
 	)
-	if is_viur_datastore_request_ok(req):
-		assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+	if is_viur_datastore_request_ok(resp):
+		assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if element.at_pointer("/batch").error() != SUCCESS:
 			print("INVALID RESPONSE RECEIVED")
-			pprint.pprint(json.loads(req.content))
+			pprint.pprint(json.loads(resp.content))
 		element = element.at_key("batch")
 		# TODO  maybe this can be solved more elegant
 		return int(toPythonStructure(element)["aggregationResults"][0]["aggregateProperties"]["property_1"]["integerValue"])
