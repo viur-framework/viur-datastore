@@ -78,7 +78,7 @@ def put(data: Union[Entity, Dict[Key, Entity], List[Entity]]):
 	try:
 		while keys:
 			data_batch = {key: data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
-			conf["memclient"].set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
+			conf["memcache_client"].set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
 			keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
 	except Exception as e:
 		logging.error(f"""Failed to put data to the memcache with {e=}""")
