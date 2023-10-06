@@ -1,7 +1,9 @@
 from viur.datastore.config import conf as config
 from viur.datastore.errors import *
+from viur.datastore import cache
 from viur.datastore.query import Query
 from viur.datastore.transport import AllocateIDs, Delete, Get, Put, RunInTransaction, Count
+from viur.datastore.transaction import Transaction
 from viur.datastore.types import (
 	currentDbAccessLog,
 	DATASTORE_BASE_TYPES,
@@ -73,4 +75,5 @@ __all__ = [
 	"NoMutationResultsError",
 	"is_viur_datastore_request_ok",
 	"Transaction"
+	"cache",
 ]
