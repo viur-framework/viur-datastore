@@ -1,8 +1,9 @@
-import logging
-
 import sys
+import time
+import time as time_module
 from typing import Any, Dict, List, Union
 
+import logging
 from viur.datastore.config import conf
 from viur.datastore.types import Entity, Key
 
@@ -134,15 +135,39 @@ def check_for_memcache() -> bool:
 		return False
 	return True
 
+
 class LocalMemcache:
 	def __init__(self):
-		self._data={}
+		self._data = {}
 
-	def get_multi(self):
-		pass
-	def set_multi(self):
-		pass
-	def delete_multi(self):
-		pass
+	def get_multi(self, keys: List[str], namespace: str = MEMCACHE_NAMESPACE):
+		if not self._data.get(namespace):
+			self._data[namespace] = {}
+		res = {}
+		for key in keys:
+			data = self._data[namespace].get(key)
+			if data is not None:
+				if data["__lifetime__"]["last_seen"]+data["__lifetime__"]["timeout"] > time.time():
+					res[key] = data["__data__"]
+				else:
+					self._data[namespace].pop(key)
+		return res
+
+	def set_multi(self, data: Dict[str, Any], namespace: str = MEMCACHE_NAMESPACE, time: int = MEMCACHE_TIMEOUT):
+		if not self._data.get(namespace):
+			self._data[namespace] = {}
+		for key, value in data.items():
+			self._data[namespace][key] = {}
+			self._data[namespace][key]["__data__"] = value
+			self._data[namespace][key]["__lifetime__"] = {"timeout": time, "last_seen": time_module.time()}
+
+	def delete_multi(self, keys: List[str] = [], namespace: str = MEMCACHE_NAMESPACE):
+		if not self._data.get(namespace):
+			self._data[namespace] = {}
+		for key in keys:
+			data = self._data[namespace].get(key)
+			if data is not None:
+				self._data[namespace].pop(key)
+
 	def flush_all(self):
-		pass
+		self._data = {}
