@@ -33,6 +33,7 @@ __all__ = [
 	"get",
 	"put",
 	"delete",
+	"LocalMemcache"
 ]
 
 
@@ -78,7 +79,7 @@ def put(data: Union[Entity, Dict[Key, Entity], List[Entity]]):
 	try:
 		while keys:
 			data_batch = {key: data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
-			conf["memclient"].set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
+			conf["memcache_client"].set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
 			keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
 	except Exception as e:
 		logging.error(f"""Failed to put data to the memcache with {e=}""")
@@ -132,3 +133,16 @@ def check_for_memcache() -> bool:
 		logging.warning(f"""conf["memcache_client"] is 'None'. It can not be used.""")
 		return False
 	return True
+
+class LocalMemcache:
+	def __init__(self):
+		self._data={}
+
+	def get_multi(self):
+		pass
+	def set_multi(self):
+		pass
+	def delete_multi(self):
+		pass
+	def flush_all(self):
+		pass
