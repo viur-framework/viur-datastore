@@ -18,11 +18,12 @@ MEMCACHE_MAX_SIZE = 1_000_000
 	To activate the cache copy this code in your main.py
 	..  code-block:: python
 	# Example
-
+	from viur.core import db
 	if not conf["viur.instance.is_dev_server"]:
 		from google.appengine.api.memcache import Client
-		from viur.core import db
 		db.config["memcache_client"] = Client()
+	else:
+		db.config["memcache_client"] = db.cache.LocalMemcache()
 
 """
 
