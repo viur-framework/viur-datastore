@@ -33,6 +33,10 @@ Or use environment variable which projectId we want to use:
 
     export CLOUDSDK_CORE_PROJECT="my-awesome-testing-project"
 
+If the env var before does not work please set that one:
+
+    export GCLOUD_PROJECT="my-awesome-testing-project"
+
 Yezzzz - now we build that awesome new stuff!:
 
     python -m build

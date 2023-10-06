@@ -10,6 +10,22 @@
 
 ### Remove
 
+## [1.3.12]
+
+### Add
+
+- basic support for memcache service
+
+### Change
+
+### Fix
+
+- correct handling of digit-only keys 
+
+### Refactor
+
+### Remove
+
 ## [1.3.11]
 
 ### Fix
