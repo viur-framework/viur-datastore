@@ -847,7 +847,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							if innerArrayElem.at_pointer("/key").error() == SUCCESS:  # We got a new key assigned
 								affectedEntity = currentTxn["affectedEntities"][idx]
 								if not affectedEntity:
-									print(resp.content)
+									logging.error(f"{resp.content=}")
 									raise ViurDatastoreError("Received an unexpected key-update")
 								affectedEntity.key = parseKey(innerArrayElem.at_key("key"))
 								affectedEntity.version = toPyStr(innerArrayElem.at_key("version").get_string())
