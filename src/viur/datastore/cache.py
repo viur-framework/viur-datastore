@@ -142,12 +142,10 @@ class LocalMemcache:
 		self._data = {}
 
 	def get_multi(self, keys: List[str], namespace: str = MEMCACHE_NAMESPACE):
-		if not self._data.get(namespace):
-			self._data[namespace] = {}
+		self._data.setdefault(namespace, {})
 		res = {}
 		for key in keys:
-			data = self._data[namespace].get(key)
-			if data is not None:
+			if (data := self._data[namespace].get(key)) is not None:
 				if data["__lifetime__"]["last_seen"]+data["__lifetime__"]["timeout"] > time.time():
 					res[key] = data["__data__"]
 				else:
@@ -155,20 +153,17 @@ class LocalMemcache:
 		return res
 
 	def set_multi(self, data: Dict[str, Any], namespace: str = MEMCACHE_NAMESPACE, time: int = MEMCACHE_TIMEOUT):
-		if not self._data.get(namespace):
-			self._data[namespace] = {}
+		self._data.setdefault(namespace, {})
 		for key, value in data.items():
 			self._data[namespace][key] = {}
 			self._data[namespace][key]["__data__"] = value
 			self._data[namespace][key]["__lifetime__"] = {"timeout": time, "last_seen": time_module.time()}
 
 	def delete_multi(self, keys: List[str] = [], namespace: str = MEMCACHE_NAMESPACE):
-		if not self._data.get(namespace):
-			self._data[namespace] = {}
+		self._data.setdefault(namespace, {})
 		for key in keys:
-			data = self._data[namespace].get(key)
-			if data is not None:
+			if (data := self._data[namespace].get(key)) is not None:
 				self._data[namespace].pop(key)
 
 	def flush_all(self):
-		self._data = {}
+		self._data.clear()
