@@ -4,6 +4,7 @@ We are mapping the error status of the rest api to that hierarchy in
 CANONICAL_ERROR_CODE_MAP.
 """
 import json
+import logging
 from pprint import pprint
 
 import requests
@@ -180,11 +181,11 @@ def is_viur_datastore_request_ok(resp: requests.Response) -> bool:
 		try:
 			error_data = json.loads(resp.content)["error"]
 			if error_data["status"] in conf["verbose_error_codes"]:
-				pprint(error_data)
+				logging.error(error_data)
 			raise CANONICAL_ERROR_CODE_MAP.get(error_data["status"], ViurDatastoreError)(error_data["message"])
 		except ViurDatastoreError:
 			raise
 		except:
-			pprint(f"{resp.url} failed with Code: {resp.content}\nAnd Content:\n{resp.content}")
+			logging.error(f"{resp.url} failed with Code: {resp.content}\nAnd Content:\n{resp.content}")
 
 	return True
