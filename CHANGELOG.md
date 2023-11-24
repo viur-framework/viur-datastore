@@ -10,6 +10,30 @@
 
 ### Remove
 
+## [1.3.13]
+
+### Add
+
+- feat: LocalMemcache (#39)
+
+  * Add LocalMemcache
+  * Implement LocalMemcache
+  * Change Docs
+  * Apply suggestions from code review
+
+  Co-authored-by: Sven Eberth <se@mausbrand.de>
+
+### Change
+
+- chore: decrease minimal required python version to 3.10 (#41)
+
+  Was increased in https://github.com/viur-framework/viur-datastore/commit/33e1f49d5b66af2f0cec17f4e60e069ba2b4eaee
+  but this is incompatible for the viur-core
+
+### Fix
+
+- Fix Typo (#38)
+
 ## [1.3.12]
 
 ### Add
