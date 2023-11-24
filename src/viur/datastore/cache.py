@@ -1,8 +1,9 @@
-import logging
-
 import sys
+import time
+import time as time_module
 from typing import Any, Dict, List, Union
 
+import logging
 from viur.datastore.config import conf
 from viur.datastore.types import Entity, Key
 
@@ -17,11 +18,12 @@ MEMCACHE_MAX_SIZE = 1_000_000
 	To activate the cache copy this code in your main.py
 	..  code-block:: python
 	# Example
-
+	from viur.core import db
 	if not conf["viur.instance.is_dev_server"]:
 		from google.appengine.api.memcache import Client
-		from viur.core import db
 		db.config["memcache_client"] = Client()
+	else:
+		db.config["memcache_client"] = db.cache.LocalMemcache()
 
 """
 
@@ -33,6 +35,7 @@ __all__ = [
 	"get",
 	"put",
 	"delete",
+	"LocalMemcache"
 ]
 
 
@@ -78,7 +81,7 @@ def put(data: Union[Entity, Dict[Key, Entity], List[Entity]]):
 	try:
 		while keys:
 			data_batch = {key: data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
-			conf["memclient"].set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
+			conf["memcache_client"].set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
 			keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
 	except Exception as e:
 		logging.error(f"""Failed to put data to the memcache with {e=}""")
@@ -132,3 +135,35 @@ def check_for_memcache() -> bool:
 		logging.warning(f"""conf["memcache_client"] is 'None'. It can not be used.""")
 		return False
 	return True
+
+
+class LocalMemcache:
+	def __init__(self):
+		self._data = {}
+
+	def get_multi(self, keys: List[str], namespace: str = MEMCACHE_NAMESPACE):
+		self._data.setdefault(namespace, {})
+		res = {}
+		for key in keys:
+			if (data := self._data[namespace].get(key)) is not None:
+				if data["__lifetime__"]["last_seen"]+data["__lifetime__"]["timeout"] > time.time():
+					res[key] = data["__data__"]
+				else:
+					self._data[namespace].pop(key)
+		return res
+
+	def set_multi(self, data: Dict[str, Any], namespace: str = MEMCACHE_NAMESPACE, time: int = MEMCACHE_TIMEOUT):
+		self._data.setdefault(namespace, {})
+		for key, value in data.items():
+			self._data[namespace][key] = {}
+			self._data[namespace][key]["__data__"] = value
+			self._data[namespace][key]["__lifetime__"] = {"timeout": time, "last_seen": time_module.time()}
+
+	def delete_multi(self, keys: List[str] = [], namespace: str = MEMCACHE_NAMESPACE):
+		self._data.setdefault(namespace, {})
+		for key in keys:
+			if (data := self._data[namespace].get(key)) is not None:
+				self._data[namespace].pop(key)
+
+	def flush_all(self):
+		self._data.clear()
