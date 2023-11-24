@@ -5,7 +5,6 @@ CANONICAL_ERROR_CODE_MAP.
 """
 import json
 import logging
-from pprint import pprint
 
 import requests
 from viur.datastore.config import conf

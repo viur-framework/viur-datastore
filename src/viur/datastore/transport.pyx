@@ -13,7 +13,7 @@ from cython.operator cimport preincrement, dereference
 from libc.stdint cimport int64_t, uint64_t
 from datetime import datetime, timezone
 from cpython.bytes cimport PyBytes_AsStringAndSize
-import pprint, json
+import json
 from base64 import b64decode, b64encode
 from typing import Union, List, Any
 from requests.exceptions import ConnectionError as RequestsConnectionError
@@ -537,8 +537,8 @@ def runSingleFilter(queryDefinition: QueryDefinition, limit: int) -> List[Entity
 		assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if element.at_pointer("/batch").error() != SUCCESS:
-			print("INVALID RESPONSE RECEIVED")
-			pprint.pprint(json.loads(resp.content))
+			logging.error("INVALID RESPONSE RECEIVED")
+			logging.error(json.loads(resp.content))
 		#	res.update(toEntityStructure(element.at_key("batch"), isInitial=True))
 		element = element.at_key("batch")
 		if element.at_pointer("/entityResults").error() == SUCCESS:
@@ -699,7 +699,7 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 		assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
-			pprint(resp.content)
+			logging.error(resp.content)
 			raise NoMutationResultsError("No mutation results received")
 		arrayElem = element.at_key("mutationResults").get_array()
 		if arrayElem.size() != abs(len(keys)):
@@ -755,7 +755,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 			raise ValueError("No mutation-results received")
 		arrayElem = element.at_key("mutationResults").get_array()
 		if arrayElem.size() != abs(len(entities)):
-			pprint(resp.content)
+			logging.error(resp.content)
 			raise NoMutationResultsError("Invalid number of mutation-results received")
 		arrayIt = arrayElem.begin()
 		idx = 0
@@ -834,7 +834,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 						assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 						element = parser.parse(data_ptr, pysize, 1)
 						if (element.at_pointer("/mutationResults").error() != SUCCESS):
-							pprint(resp.content)
+							logging.error(resp.content)
 							raise NoMutationResultsError("No mutation-results received")
 						arrayElem = element.at_key("mutationResults").get_array()
 						if arrayElem.size() != abs(len(currentTxn["affectedEntities"])):
@@ -1018,8 +1018,8 @@ def Count(kind: str = None, up_to= 2 ** 63 - 1, queryDefinition: QueryDefinition
 		assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if element.at_pointer("/batch").error() != SUCCESS:
-			print("INVALID RESPONSE RECEIVED")
-			pprint.pprint(json.loads(resp.content))
+			logging.error("INVALID RESPONSE RECEIVED")
+			logging.error(json.loads(resp.content))
 		element = element.at_key("batch")
 		# TODO  maybe this can be solved more elegant
 		return int(toPythonStructure(element)["aggregationResults"][0]["aggregateProperties"]["property_1"]["integerValue"])
