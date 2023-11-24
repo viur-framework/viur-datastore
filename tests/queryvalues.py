@@ -142,8 +142,6 @@ class QueryValuesTest(BaseTestClass):
 					datastore.Key(testKindName, 5678),
 					datastore.Key(testKindName, "teststr"),
 					datastore.Key(testKindName, "teststr", parent=datastore.Key(testKindName, "teststr")),
-					datastore.Key(testKindName, "42"),  # String with only digits (#33)
-					datastore.Key(testKindName, "1337", parent=datastore.Key(testKindName, "13")),
 					]
 		for keyVal in key_list:
 			e = datastore.Entity(datastore.Key(testKindName))
@@ -151,6 +149,7 @@ class QueryValuesTest(BaseTestClass):
 			datastore.Put(e)
 		for keyVal in key_list:
 			self.assertTrue(len(datastore.Query(testKindName).filter("keyVal =", keyVal).run(100)) == 1)
+
 		# FIXME: HAS_ANCESTOR is not yet implemented
 
 	def test_datetime_filter(self):

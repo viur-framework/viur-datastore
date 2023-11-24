@@ -126,7 +126,8 @@ class BasicFunctionTest(BaseTestClass):
 		self.assertIsNone(key.name)
 		self.assertIsNone(key.parent)
 
-		key = datastore.Key(testKindName, "1337")
+		self.assertRaises(AssertionError, datastore.Key, testKindName, "1337")  # String with only digits (#33)
+		key = datastore.Key(testKindName, 1337)
 		self.assertIsInstance(key.id, int)
 		self.assertEqual(key.id, 1337)
 		self.assertIsNone(key.name)
