@@ -703,7 +703,7 @@ def Delete(keys: Union[Key, List[Key], Entity, List[Entity]]) -> None:
 			raise NoMutationResultsError("No mutation results received")
 		arrayElem = element.at_key("mutationResults").get_array()
 		if arrayElem.size() != abs(len(keys)):
-			print(resp.content)
+			logging.error(resp.content)
 			raise ValueError("Invalid number of mutation-results received")
 	if conf["memcache_client"] is not None:
 		cache.delete([str(key) for key in keys])
@@ -751,7 +751,7 @@ def Put(entities: Union[Entity, List[Entity]]) -> Union[Entity, List[Entity]]:
 		assert PyBytes_AsStringAndSize(resp.content, &data_ptr, &pysize) != -1
 		element = parser.parse(data_ptr, pysize, 1)
 		if (element.at_pointer("/mutationResults").error() != SUCCESS):
-			print(resp.content)
+			logging.error(resp.content)
 			raise ValueError("No mutation-results received")
 		arrayElem = element.at_key("mutationResults").get_array()
 		if arrayElem.size() != abs(len(entities)):
@@ -838,7 +838,7 @@ def RunInTransaction(callback: callable, *args, **kwargs) -> Any:
 							raise NoMutationResultsError("No mutation-results received")
 						arrayElem = element.at_key("mutationResults").get_array()
 						if arrayElem.size() != abs(len(currentTxn["affectedEntities"])):
-							print(resp.content)
+							logging.error(resp.content)
 							raise ViurDatastoreError("Invalid number of mutation-results received")
 						arrayIt = arrayElem.begin()
 						idx = 0
