@@ -154,7 +154,7 @@ class Entity(dict):
 		The python representation of one datastore entity. The values of this entity are stored inside this dictionary,
 		while the meta-data (it's key, the list of properties excluded from indexing and our version) as property values.
 	"""
-	__slots__ = ["key", "_exclude_from_indexes","version"]
+	__slots__ = ["key", "_exclude_from_indexes", "version"]
 
 	def __init__(self, key: Optional[Key] = None, exclude_from_indexes: Optional[Set[str]] = None):
 		super(Entity, self).__init__()
@@ -165,11 +165,11 @@ class Entity(dict):
 		self.version = None
 
 	@property
-	def exclude_from_indexes(self):
+	def exclude_from_indexes(self) -> set[str]:
 		return self._exclude_from_indexes
 
 	@exclude_from_indexes.setter
-	def exclude_from_indexes(self, value):
+	def exclude_from_indexes(self, value : set[str] | list[str] | tuple[str]) -> None:
 		self._exclude_from_indexes = set(value)
 
 @dataclass
