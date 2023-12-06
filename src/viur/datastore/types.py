@@ -169,7 +169,7 @@ class Entity(dict):
 		return self._exclude_from_indexes
 
 	@exclude_from_indexes.setter
-	def exclude_from_indexes(self, value : set[str] | list[str] | tuple[str]) -> None:
+	def exclude_from_indexes(self, value: set[str] | list[str] | tuple[str]) -> None:
 		self._exclude_from_indexes = set(value)
 
 @dataclass
