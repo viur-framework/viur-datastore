@@ -4,7 +4,7 @@ from Cython.Distutils import build_ext
 
 setup(
 	name='viur-datastore',
-	version="1.3.11",
+	version="1.3.13",
 	author="Tobias Steinrücken, Stefan Kögl",
 	author_email="devs@viur.dev",
 	maintainer="Stefan Kögl",
