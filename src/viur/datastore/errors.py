@@ -11,174 +11,174 @@ from viur.datastore.config import conf
 
 
 class ViurDatastoreError(ValueError):
-	"""Base Exception class for viur-datastore errors.
+    """Base Exception class for viur-datastore errors.
 
-	Can be used as a catch all Exception/Error.
-	"""
-	pass
+    Can be used as a catch all Exception/Error.
+    """
+    pass
 
 
 class AbortedError(ViurDatastoreError):
-	"""Indicates that the request conflicted with another request.
+    """Indicates that the request conflicted with another request.
 
-	status code 400
+    status code 400
 
-	For a non-transactional commit:
-	Retry the request or structure your entities to reduce contention.
+    For a non-transactional commit:
+    Retry the request or structure your entities to reduce contention.
 
-	For requests that are part of a transactional commit:
-	Retry the entire transaction or structure your entities to reduce contention.
-	"""
-	pass
+    For requests that are part of a transactional commit:
+    Retry the entire transaction or structure your entities to reduce contention.
+    """
+    pass
 
 
 class CollisionError(ViurDatastoreError):
-	"""Indicates that the request attempted to insert an entity that already exists.
+    """Indicates that the request attempted to insert an entity that already exists.
 
-	This error/exception was problabely catched at most 3 times with exponential backoff.
+    This error/exception was problabely catched at most 3 times with exponential backoff.
 
-	Eventually we can assume, that this error/failure should be accepted.
+    Eventually we can assume, that this error/failure should be accepted.
 
-	status code 409
+    status code 409
 
-	Do not retry without fixing the problem.
-	"""
-	pass
+    Do not retry without fixing the problem.
+    """
+    pass
 
 
 class DeadlineExceededError(ViurDatastoreError):
-	"""A deadline was exceeded on the server.
+    """A deadline was exceeded on the server.
 
-	status code 504
+    status code 504
 
-	Retry using exponential backoff.
-	"""
-	pass
+    Retry using exponential backoff.
+    """
+    pass
 
 
 class FailedPreconditionError(ViurDatastoreError):
-	"""Indicates that a precondition for the request was not met.
+    """Indicates that a precondition for the request was not met.
 
-	The message field in the error response provides information about the precondition that failed.
-	One possible cause is running a query that requires an index not yet defined.
+    The message field in the error response provides information about the precondition that failed.
+    One possible cause is running a query that requires an index not yet defined.
 
-	Do not retry without fixing the problem.
+    Do not retry without fixing the problem.
 
-	"""
-	pass
+    """
+    pass
 
 
 class InternalError(RuntimeError):
-	"""Server returned an error.
+    """Server returned an error.
 
-	status code 500
+    status code 500
 
-	Do not retry this request more than once.
-	"""
-	pass
+    Do not retry this request more than once.
+    """
+    pass
 
 
 class InvalidArgumentError(ViurDatastoreError):
-	"""Indicates that a request parameter has an invalid value.
+    """Indicates that a request parameter has an invalid value.
 
-	The message field in the error response provides information as to which value was invalid.
+    The message field in the error response provides information as to which value was invalid.
 
-	status code 400
+    status code 400
 
-	Do not retry without fixing the problem.
-	"""
-	pass
+    Do not retry without fixing the problem.
+    """
+    pass
 
 
 class NotFoundError(ViurDatastoreError):
-	"""Indicates that the request attempted to update an entity that does not exist.
+    """Indicates that the request attempted to update an entity that does not exist.
 
-	status code 404
+    status code 404
 
-	Do not retry without fixing the problem.
-	"""
-	pass
+    Do not retry without fixing the problem.
+    """
+    pass
 
 
 class PermissionDeniedError(ViurDatastoreError):
-	"""Indicates that the user was not authorized to make the request.
+    """Indicates that the user was not authorized to make the request.
 
-	status code 403
+    status code 403
 
-	Do not retry without fixing the problem.
-	"""
-	pass
+    Do not retry without fixing the problem.
+    """
+    pass
 
 
 class ResourceExhaustedError(ViurDatastoreError):
-	"""Indicates that the project exceeded either its quota or the region/multi-region capacity.
+    """Indicates that the project exceeded either its quota or the region/multi-region capacity.
 
-	status code 429
+    status code 429
 
-	Verify that you did not exceed your project quota. If you exceeded a project quota,
-	do not retry without fixing the problem.
+    Verify that you did not exceed your project quota. If you exceeded a project quota,
+    do not retry without fixing the problem.
 
-	Otherwise, retry with exponential backoff.
-	"""
-	pass
+    Otherwise, retry with exponential backoff.
+    """
+    pass
 
 
 class UnauthenticatedError(ViurDatastoreError):
-	"""Indicates that the request did not have valid authentication credentials.
+    """Indicates that the request did not have valid authentication credentials.
 
-	status code
+    status code
 
-	Do not retry without fixing the problem.
-	"""
-	pass
+    Do not retry without fixing the problem.
+    """
+    pass
 
 
 class UnavailableError(ViurDatastoreError):
-	"""Server returned an error.
+    """Server returned an error.
 
-	status code 503
+    status code 503
 
-	Retry using exponential backoff.
-	"""
-	pass
+    Retry using exponential backoff.
+    """
+    pass
 
 
 class NoMutationResultsError(ViurDatastoreError):
-	"""This error indicates that it's either an internal bug in viur-datastore or the datastore itself went bust
+    """This error indicates that it's either an internal bug in viur-datastore or the datastore itself went bust
 
-	This is an 'internal' error which is not backed by an error code provided by google datastore.
-	"""
-	pass
+    This is an 'internal' error which is not backed by an error code provided by google datastore.
+    """
+    pass
 
 
 """This maps the indicator from error object status field to one of
 our ViurDatastore Exception classes"""
 CANONICAL_ERROR_CODE_MAP = {
-	"ABORTED": AbortedError,
-	"ALREADY_EXISTS": CollisionError,
-	"DEADLINE_EXCEEDED": DeadlineExceededError,
-	"FAILED_PRECONDITION": FailedPreconditionError,
-	"INTERNAL": InternalError,
-	"INVALID_ARGUMENT": InvalidArgumentError,
-	"NOT_FOUND": NotFoundError,
-	"PERMISSION_DENIED": PermissionDeniedError,
-	"RESOURCE_EXHAUSTED": ResourceExhaustedError,
-	"UNAUTHENTICATED": UnauthenticatedError,
-	"UNAVAILABLE": UnavailableError
+    "ABORTED": AbortedError,
+    "ALREADY_EXISTS": CollisionError,
+    "DEADLINE_EXCEEDED": DeadlineExceededError,
+    "FAILED_PRECONDITION": FailedPreconditionError,
+    "INTERNAL": InternalError,
+    "INVALID_ARGUMENT": InvalidArgumentError,
+    "NOT_FOUND": NotFoundError,
+    "PERMISSION_DENIED": PermissionDeniedError,
+    "RESOURCE_EXHAUSTED": ResourceExhaustedError,
+    "UNAUTHENTICATED": UnauthenticatedError,
+    "UNAVAILABLE": UnavailableError
 }
 
 
 def is_viur_datastore_request_ok(req: requests.Response) -> bool:
-	"""This small helper function raise an appropriate exception class for errors happened talking to google datastore.
+    """This small helper function raise an appropriate exception class for errors happened talking to google datastore.
 
-	It returns True if everything is ok, otherwise raises.
+    It returns True if everything is ok, otherwise raises.
 
-	Also it pretty prints the message for selected errors on stderr/stdout. Look at viur.datastore.config.conf
-	verbose_error_codes field.
-	"""
-	if req.status_code != 200:
-		error_data = json.loads(req.content)["error"]
-		if error_data["status"] in conf["verbose_error_codes"]:
-			pprint(error_data)
-		raise CANONICAL_ERROR_CODE_MAP.get(error_data["status"], ViurDatastoreError)(error_data["message"])
-	return True
+    Also it pretty prints the message for selected errors on stderr/stdout. Look at viur.datastore.config.conf
+    verbose_error_codes field.
+    """
+    if req.status_code != 200:
+        error_data = json.loads(req.content)["error"]
+        if error_data["status"] in conf["verbose_error_codes"]:
+            pprint(error_data)
+        raise CANONICAL_ERROR_CODE_MAP.get(error_data["status"], ViurDatastoreError)(error_data["message"])
+    return True
