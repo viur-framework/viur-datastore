@@ -524,7 +524,7 @@ class Query(object):
         resultList = list(resultList)
         if resultList and resultList[0].key.kind != self.origKind and resultList[0].key.parent and \
             resultList[0].key.parent.kind == self.origKind:
-            return list(Get([x.key.parent for x in resultList]))
+            return list(Get(list(dict.fromkeys([x.key.parent for x in resultList]))))
         return resultList
 
     def run(self, limit: int = -1) -> List[Entity]:
