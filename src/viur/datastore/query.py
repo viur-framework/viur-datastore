@@ -401,7 +401,7 @@ class Query(object):
             q = self.queries
         elif isinstance(self.queries, list):
             q = self.queries[0]
-        return urlsafe_b64encode(q.currentCursor.encode("ASCII")).decode("ASCII") if q.currentCursor else None
+        return urlsafe_b64encode(q.currentCursor).decode("ASCII") if q.currentCursor else None
 
     def get_orders(self):
         """
@@ -584,7 +584,7 @@ class Query(object):
             self._lastEntry = res[-1]
         return res
 
-    def count(self, up_to: int = 2 ** 63 - 1):
+    def count(self, up_to: int = 2 ** 31 - 1):
         """
             The count operation cost one entity read for up to 1,000 index entries matched
             (https://cloud.google.com/datastore/docs/aggregation-queries#pricing)

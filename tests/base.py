@@ -49,7 +49,7 @@ def viurTypeToGoogleType(val):
 	"""
 	def rewriteKey(key):
 		if key:
-			return __client__.key(key.kind, key.id_or_name, parent=rewriteKey(key.parent))
+			return datastore.Key(key.kind, key.id_or_name, parent=rewriteKey(key.parent)) # FIXME
 	if isinstance(val, datastore.Key):
 		return rewriteKey(val)
 	elif isinstance(val, list):

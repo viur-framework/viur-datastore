@@ -5,9 +5,11 @@ from enum import Enum
 from datetime import datetime, date, time
 from dataclasses import dataclass
 from contextvars import ContextVar
-from google.cloud.datastore import _app_engine_key_pb2
+from google.cloud.datastore import _app_engine_key_pb2, Key as Datastore_key, Entity as Datastore_entity
+from google.cloud._helpers import _to_bytes, _ensure_tuple_or_list
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 import google.auth
+import base64
 
 """
 	The constants, global variables and container classes used in the datastore api
@@ -57,35 +59,19 @@ class SkelListRef(list):
         self.customQueryInfo = {}
 
 
-class Key:
+class Key(Datastore_key):
     """
         The python representation of one datastore key. Unlike the original implementation, we don't store a
         reference to the project the key lives in. This is always expected to be the current project as ViUR
         does not support accessing data in multiple projects.
     """
 
-    __slots__ = ["id", "name", "kind", "parent"]
-
-    def __init__(self, kind: str, subKey: Union[int, str] = None, parent: 'Key' = None):
-        super().__init__()
-        self.kind = kind
-        self.id = None
-        self.name = None
-        if isinstance(subKey, int):
-            self.id = subKey
-        elif isinstance(subKey, str):
-            if subKey.isdigit():
-                self.id = int(subKey)
-            else:
-                self.name = subKey
-        self.parent = parent
-
-    @property
-    def id_or_name(self) -> Union[None, str, int]:
-        """
-            :return: This key's id or name (or none, if this key is partial)
-        """
-        return self.id or self.name
+    def __init__(self, *path_args, **kwargs):
+        kwargs["project"] = projectID
+        if len(path_args)==3: # !!! VIUR
+            kwargs["parent"] = path_args[2]
+            path_args = path_args[:2]
+        super().__init__(*path_args,**kwargs)
 
     def __str__(self):
         return self.to_legacy_urlsafe().decode("ASCII")
@@ -100,35 +86,52 @@ class Key:
         return isinstance(other, Key) and self.kind == other.kind and self.id == other.id and self.name == other.name \
                and self.parent == other.parent
 
-    def to_legacy_urlsafe(self) -> str:
-        """
-            Converts this key into the (urlsafe) protobuf string representation.
-            :return: The urlsafe string representation of this key
-        """
-        currentKey = self
-        pathElements = []
-        while currentKey:
-            pathElements.insert(0, _app_engine_key_pb2.Path.Element(
-                type=currentKey.kind,
-                id=currentKey.id,
-                name=currentKey.name,
-            ))
-            currentKey = currentKey.parent
-        reference = _app_engine_key_pb2.Reference(
-            app=projectID,
-            path=_app_engine_key_pb2.Path(element=pathElements),
-        )
-        raw_bytes = reference.SerializeToString()
-        return urlsafe_b64encode(raw_bytes).strip(b"=")
+    @staticmethod
+    def _parse_path(path_args):
+        """Parses positional arguments into key path with kinds and IDs.
 
-    @property
-    def is_partial(self) -> bool:
+        :type path_args: tuple
+        :param path_args: A tuple from positional arguments. Should be
+                          alternating list of kinds (string) and ID/name
+                          parts (int or string).
+
+        :rtype: :class:`list` of :class:`dict`
+        :returns: A list of key parts with kind and ID or name set.
+        :raises: :class:`ValueError` if there are no ``path_args``, if one of
+                 the kinds is not a string or if one of the IDs/names is not
+                 a string or an integer.
         """
-            Checks if this key is partial (ie it belongs to an entity that has not been saved to the datastore).
-            If the entity is saved, this key will be replaced by a full key (having an id or a name assigned)
-            :return: True if this key is partial
-        """
-        return self.id_or_name is None
+        if len(path_args) == 0:
+            raise ValueError("Key path must not be empty.")
+
+        kind_list = path_args[::2]
+        id_or_name_list = path_args[1::2]
+        # Dummy sentinel value to pad incomplete key to even length path.
+        partial_ending = object()
+        if len(path_args) % 2 == 1:
+            id_or_name_list += (partial_ending,)
+
+        result = []
+        for kind, id_or_name in zip(kind_list, id_or_name_list):
+            curr_key_part = {}
+            if isinstance(kind, str):
+                curr_key_part["kind"] = kind
+            else:
+                raise ValueError(kind, "Kind was not a string.")
+
+            if isinstance(id_or_name, str):
+                if (id_or_name.isdigit()): # !!! VIUR
+                    curr_key_part["id"] = int(id_or_name)
+                else:
+                    curr_key_part["name"] = id_or_name
+
+            elif isinstance(id_or_name, int):
+                curr_key_part["id"] = id_or_name
+            elif id_or_name is not partial_ending:
+                raise ValueError(id_or_name, "ID/name was not a string or integer.")
+
+            result.append(curr_key_part)
+        return result
 
     @classmethod
     def from_legacy_urlsafe(cls, strKey: str) -> Key:
@@ -137,33 +140,29 @@ class Key:
             :param strKey: The string key to parse
             :return: The new Key object constructed from the string key
         """
-        urlsafe = strKey.encode("ASCII")
+        urlsafe = _to_bytes(urlsafe, encoding="ascii")
         padding = b"=" * (-len(urlsafe) % 4)
         urlsafe += padding
-        raw_bytes = urlsafe_b64decode(urlsafe)
+        raw_bytes = base64.urlsafe_b64decode(urlsafe)
+
         reference = _app_engine_key_pb2.Reference()
         reference.ParseFromString(raw_bytes)
+
         resultKey = None
         for elem in reference.path.element:
             resultKey = Key(elem.type, elem.id or elem.name, parent=resultKey)
         return resultKey
 
 
-class Entity(dict):
+class Entity(Datastore_entity):
     """
         The python representation of one datastore entity. The values of this entity are stored inside this dictionary,
         while the meta-data (it's key, the list of properties excluded from indexing and our version) as property values.
     """
-    __slots__ = ["key", "exclude_from_indexes", "version"]
 
-    def __init__(self, key: Optional[Key] = None, exclude_from_indexes: Optional[Set[str]] = None):
-        super(Entity, self).__init__()
+    def __init__(self, key: Optional[Key] = None, exclude_from_indexes: Optional[List[str]] = None):
+        super(Entity, self).__init__(key, exclude_from_indexes or [])
         assert not key or isinstance(key, Key), "Key must be a Key-Object (or None for an embedded entity)"
-        self.key = key
-        self.exclude_from_indexes = exclude_from_indexes or set()
-        assert isinstance(self.exclude_from_indexes, set)
-        self.version = None
-
 
 @dataclass
 class QueryDefinition:
