@@ -1,8 +1,9 @@
-from viur.datastore.types import Entity, Key, currentTransaction, currentDbAccessLog
-from viur.datastore.transport import Get, Put, RunInTransaction
-from typing import Union, Tuple, List, Set, Optional
-import binascii
 from datetime import datetime
+from typing import List, Optional, Set, Tuple, Union
+
+from viur.datastore.transport import Get, Put, RunInTransaction
+
+from viur.datastore.types import Entity, Key, currentDbAccessLog, currentTransaction
 
 
 def fixUnindexableProperties(entry: Entity) -> Entity:
@@ -39,7 +40,7 @@ def fixUnindexableProperties(entry: Entity) -> Entity:
     return entry
 
 
-def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
+def normalizeKey(key: Union[None, Key]) -> Union[None, Key]:
     """
         Normalizes a datastore key (replacing _application with the current one)
 

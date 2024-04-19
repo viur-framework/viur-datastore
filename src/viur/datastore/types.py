@@ -1,17 +1,21 @@
-# -*- coding: utf-8 -*-
+"""
+The constants, global variables and container classes used in the datastore api
+"""
 from __future__ import annotations
-from typing import Union, Tuple, List, Dict, Set, Optional
-from enum import Enum
-from datetime import datetime, date, time
-from dataclasses import dataclass
-from contextvars import ContextVar
-from google.cloud.datastore import _app_engine_key_pb2
-from base64 import urlsafe_b64encode, urlsafe_b64decode
-import google.auth
 
-"""
-	The constants, global variables and container classes used in the datastore api
-"""
+import typing as t
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from contextvars import ContextVar
+from dataclasses import dataclass
+from datetime import date, datetime, time
+from enum import Enum
+from typing import Dict, List, Optional, Set, Tuple, Union
+
+import google.auth
+from google.cloud.datastore import _app_engine_key_pb2
+
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
 
 # The property name pointing to an entities key in a query
 KEY_SPECIAL_PROPERTY = "__key__"
@@ -45,7 +49,7 @@ class SkelListRef(list):
 
     __slots__ = ["baseSkel", "getCursor", "get_orders", "customQueryInfo", "renderPreparation"]
 
-    def __init__(self, baseSkel=None):
+    def __init__(self, baseSkel: t.Optional["SkeletonInstance"] = None):
         """
             :param baseSkel: The baseclass for all entries in this list
         """
@@ -98,9 +102,9 @@ class Key:
 
     def __eq__(self, other):
         return isinstance(other, Key) and self.kind == other.kind and self.id == other.id and self.name == other.name \
-               and self.parent == other.parent
+            and self.parent == other.parent
 
-    def to_legacy_urlsafe(self) -> str:
+    def to_legacy_urlsafe(self) -> bytes:
         """
             Converts this key into the (urlsafe) protobuf string representation.
             :return: The urlsafe string representation of this key
