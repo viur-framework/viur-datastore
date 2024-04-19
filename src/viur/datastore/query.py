@@ -10,8 +10,15 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from viur.datastore.transport import Count, Get, runSingleFilter
 
 from viur.datastore.config import conf
-from viur.datastore.types import DATASTORE_BASE_TYPES, Entity, KEY_SPECIAL_PROPERTY, QueryDefinition, SkelListRef, \
-    SortOrder, currentDbAccessLog
+from viur.datastore.types import (
+    DATASTORE_BASE_TYPES,
+    Entity,
+    KEY_SPECIAL_PROPERTY,
+    QueryDefinition,
+    SkelListRef,
+    SortOrder,
+    currentDbAccessLog,
+)
 from viur.datastore.utils import IsInTransaction
 
 if t.TYPE_CHECKING:
@@ -608,7 +615,7 @@ class Query(object):
         else:
             return Count(queryDefinition=self.queries, up_to=up_to)
 
-    def fetch(self, limit: int = -1) -> SkelListRef['SkeletonInstance']:
+    def fetch(self, limit: int = -1) -> SkelListRef['SkeletonInstance'] | None:
         """
             Run this query and fetch results as :class:`server.skeleton.SkelList`.
 
