@@ -1,14 +1,28 @@
 from __future__ import annotations
+
 import logging
-from typing import Union, Tuple, List, Dict, Any, Callable, Set, Optional
-from functools import partial
+import typing as t
+from base64 import urlsafe_b64decode, urlsafe_b64encode
 from copy import deepcopy
-from viur.datastore.types import QueryDefinition, DATASTORE_BASE_TYPES, Entity, currentDbAccessLog, SortOrder, \
-    SkelListRef, KEY_SPECIAL_PROPERTY
-from viur.datastore.transport import runSingleFilter, Get, Count
-from viur.datastore.utils import IsInTransaction
+from functools import partial
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
+from viur.datastore.transport import Count, Get, runSingleFilter
+
 from viur.datastore.config import conf
-from base64 import urlsafe_b64encode, urlsafe_b64decode
+from viur.datastore.types import (
+    DATASTORE_BASE_TYPES,
+    Entity,
+    KEY_SPECIAL_PROPERTY,
+    QueryDefinition,
+    SkelListRef,
+    SortOrder,
+    currentDbAccessLog,
+)
+from viur.datastore.utils import IsInTransaction
+
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
 
 
 def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
@@ -403,7 +417,7 @@ class Query(object):
             q = self.queries[0]
         return urlsafe_b64encode(q.currentCursor.encode("ASCII")).decode("ASCII") if q.currentCursor else None
 
-    def get_orders(self):
+    def get_orders(self) -> List[Tuple[str, SortOrder]] | None:
         """
             Get the orders from this query.
 
@@ -584,7 +598,7 @@ class Query(object):
             self._lastEntry = res[-1]
         return res
 
-    def count(self, up_to: int = 2 ** 63 - 1):
+    def count(self, up_to: int = 2 ** 63 - 1) -> int:
         """
             The count operation cost one entity read for up to 1,000 index entries matched
             (https://cloud.google.com/datastore/docs/aggregation-queries#pricing)
@@ -601,7 +615,7 @@ class Query(object):
         else:
             return Count(queryDefinition=self.queries, up_to=up_to)
 
-    def fetch(self, limit: int = -1) -> List['SkeletonInstanceRef']:
+    def fetch(self, limit: int = -1) -> SkelListRef['SkeletonInstance'] | None:
         """
             Run this query and fetch results as :class:`server.skeleton.SkelList`.
 
@@ -641,7 +655,7 @@ class Query(object):
         res.get_orders = lambda: self.get_orders()
         return res
 
-    def iter(self):
+    def iter(self) -> t.Iterator[Entity]:
         """
             Run this query and return an iterator for the results.
 
@@ -678,7 +692,7 @@ class Query(object):
         except (IndexError, TypeError):  # Empty result-set
             return None
 
-    def getSkel(self) -> Optional['SkeletonInstanceRef']:
+    def getSkel(self) -> Optional['SkeletonInstance']:
         """
             Returns a matching :class:`server.db.skeleton.Skeleton` instance for the
             current query.
