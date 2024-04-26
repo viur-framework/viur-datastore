@@ -66,7 +66,7 @@ class Key:
 
     __slots__ = ["id", "name", "kind", "parent"]
 
-    def __init__(self, kind: str, subKey: Union[int, str] = None, parent: 'Key' = None):
+    def __init__(self, kind: str, subKey: Union[int, str, None] = None, parent: 'Key' = None):
         super().__init__()
         self.kind = kind
         self.id = None
@@ -78,6 +78,8 @@ class Key:
                 self.id = int(subKey)
             else:
                 self.name = subKey
+        elif subKey is not None:
+            raise ValueError(f"Invalid argument type {subKey = }")
         self.parent = parent
 
     @property
