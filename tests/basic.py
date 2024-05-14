@@ -1,10 +1,12 @@
 import unittest
+
 from viur import datastore
-from .base import BaseTestClass, datastoreSampleValues, viurTypeToGoogleType, testKindName
+from .base import BaseTestClass, datastoreSampleValues, testKindName, viurTypeToGoogleType
 
 """
 	This test-set ensures that basic operations as get, put and delete work as expected
 """
+
 
 class BasicFunctionTest(BaseTestClass):
 
@@ -27,6 +29,17 @@ class BasicFunctionTest(BaseTestClass):
 		self.datastoreClient.put(e)  # Create the entity
 		self.assertTrue(self.datastoreClient.get(self.datastoreClient.key(testKindName, "test-entity")) is not None)
 		self.assertTrue(datastore.Get(datastore.Key(testKindName, "test-entity")) is not None)
+
+	def test_get_partial_key(self):
+		"""
+		Ensure we refuse invalid keys in Get before fetching
+		"""
+		with self.assertRaises(datastore.InvalidArgumentError):
+			# partial (no id_or_name) key
+			_ = datastore.Get(datastore.Key(testKindName))
+		with self.assertRaises(datastore.InvalidArgumentError):
+			# kind-less keyy
+			_ = datastore.Get(datastore.Key(None, "foo"))  # noqa
 
 	def test_delete(self):
 		"""
@@ -86,7 +99,7 @@ class BasicFunctionTest(BaseTestClass):
 			The indexed/unindexed flag is handled differently than all other datatypes.
 			Ensure, we can set a list to un-indexed.
 		"""
-		testList = ["a"*600, "b"*600]
+		testList = ["a" * 600, "b" * 600]
 		entity = datastore.Entity(datastore.Key(testKindName, "test-entity"))
 		entity["testlist"] = testList
 		entity.exclude_from_indexes.add("testlist")
@@ -100,7 +113,7 @@ class BasicFunctionTest(BaseTestClass):
 			The indexed/unindexed flag is handled differently than all other datatypes.
 			Ensure, we can store an indexed list.
 		"""
-		testList = ["a"*300, "b"*300]
+		testList = ["a" * 300, "b" * 300]
 		entity = datastore.Entity(datastore.Key(testKindName, "test-entity"))
 		entity["testlist"] = testList
 		datastore.Put(entity)
@@ -141,6 +154,7 @@ class BasicFunctionTest(BaseTestClass):
 		key = datastore.Key(testKindName, "bar", parent_key)
 		self.assertEqual(key.name, "bar")
 		self.assertEqual(key.parent, parent_key)
+
 
 if __name__ == '__main__':
 	unittest.main()
