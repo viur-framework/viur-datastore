@@ -581,6 +581,8 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
     if isinstance(keys, Key):
         keys = [keys]
         isMulti = False
+    if any(key.is_partial or key.kind is None for key in keys):
+        raise InvalidArgumentError("Keys must not be partial or kind-less")
     accessLog = currentDbAccessLog.get()
     if isinstance(accessLog, set):
         accessLog.update(set(keys))
