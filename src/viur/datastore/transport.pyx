@@ -17,6 +17,8 @@ import pprint, json
 from base64 import b64decode, b64encode
 from typing import Union, List, Any
 from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.adapters import HTTPAdapter
+from multiprocessing import cpu_count
 import logging
 from time import sleep
 ## Start of CPP-Imports required for the simdjson->python bridge
@@ -100,6 +102,13 @@ credentials, projectID = google.auth.default(scopes=["https://www.googleapis.com
 _http_internal = google.auth.transport.requests.AuthorizedSession(
     credentials,
     refresh_timeout=300,
+)
+_http_internal.mount(
+    "https://",
+    HTTPAdapter(
+        pool_connections=cpu_count() * 4,
+        pool_maxsize=cpu_count() * 4 * cpu_count()
+    )
 )
 
 def authenticatedRequest(url: str, data: bytes) -> requests.Response:
@@ -627,7 +636,16 @@ def Get(keys: Union[Key, List[Key]]) -> Union[None, Entity, List[Entity]]:
             data=json.dumps(postData).encode("UTF-8"),
         )
         assert req.status_code == 200
-        assert PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize) != -1
+        # TODO: remove when debugged and fixed - this will hopefully catch low level issues
+        try:
+            res = PyBytes_AsStringAndSize(req.content, &data_ptr, &pysize)
+            if res == -1:
+                raise Exception("res == -1")
+        except Exception as err:
+            logging.error(f"probably null bytes in content: {req.content=}")
+            logging.exception(err)
+            raise
+
         element = parser.parse(data_ptr, pysize, 1)
         if (element.at_pointer("/found").error() == SUCCESS):
             res_from_db.update(toEntityStructure(element.at_key("found"), isInitial=True))
