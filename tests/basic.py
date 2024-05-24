@@ -31,6 +31,17 @@ class BasicFunctionTest(BaseTestClass):
 		self.assertTrue(self.datastoreClient.get(self.datastoreClient.key(testKindName, "test-entity")) is not None)
 		self.assertTrue(datastore.Get(datastore.Key(testKindName, "test-entity")) is not None)
 
+	def test_get_partial_key(self):
+		"""
+		Ensure we refuse invalid keys in Get before fetching
+		"""
+		with self.assertRaises(datastore.InvalidArgumentError):
+			# partial (no id_or_name) key
+			_ = datastore.Get(datastore.Key(testKindName))
+		with self.assertRaises(datastore.InvalidArgumentError):
+			# kind-less keyy
+			_ = datastore.Get(datastore.Key(None, "foo"))  # noqa
+
 	def test_delete(self):
 		"""
 			Ensure we can delete a entity
