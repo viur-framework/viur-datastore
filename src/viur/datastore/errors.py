@@ -4,9 +4,10 @@ We are mapping the error status of the rest api to that hierarchy in
 CANONICAL_ERROR_CODE_MAP.
 """
 import json
-from pprint import pprint
+import logging
 
 import requests
+
 from viur.datastore.config import conf
 
 
@@ -168,7 +169,7 @@ CANONICAL_ERROR_CODE_MAP = {
 }
 
 
-def is_viur_datastore_request_ok(req: requests.Response) -> bool:
+def is_viur_datastore_request_ok(resp: requests.Response) -> bool:
     """This small helper function raise an appropriate exception class for errors happened talking to google datastore.
 
     It returns True if everything is ok, otherwise raises.
@@ -176,9 +177,15 @@ def is_viur_datastore_request_ok(req: requests.Response) -> bool:
     Also it pretty prints the message for selected errors on stderr/stdout. Look at viur.datastore.config.conf
     verbose_error_codes field.
     """
-    if req.status_code != 200:
-        error_data = json.loads(req.content)["error"]
-        if error_data["status"] in conf["verbose_error_codes"]:
-            pprint(error_data)
-        raise CANONICAL_ERROR_CODE_MAP.get(error_data["status"], ViurDatastoreError)(error_data["message"])
+    if resp.status_code != 200:
+        try:
+            error_data = resp.json()["error"]
+            if error_data["status"] in conf["verbose_error_codes"]:
+                logging.error(error_data)
+            raise CANONICAL_ERROR_CODE_MAP.get(error_data["status"], ViurDatastoreError)(error_data["message"])
+        except ViurDatastoreError:
+            raise
+        except Exception:
+            logging.error(f"{resp.url} failed with Code: {resp.status_code}\nAnd Content:\n{resp.content}")
+
     return True
