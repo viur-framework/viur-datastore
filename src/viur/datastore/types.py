@@ -170,13 +170,13 @@ class Entity(dict):
         assert isinstance(self.exclude_from_indexes, set)
         self.version = None
 
-        @property
-        def exclude_from_indexes(self) -> set[str]:
-            return self._exclude_from_indexes
+    @property
+    def exclude_from_indexes(self) -> set[str]:
+        return self._exclude_from_indexes
 
-        @exclude_from_indexes.setter
-        def exclude_from_indexes(self, value: set[str] | list[str] | tuple[str]) -> None:
-            self._exclude_from_indexes = set(value)
+    @exclude_from_indexes.setter
+    def exclude_from_indexes(self, value: set[str] | list[str] | tuple[str]) -> None:
+        self._exclude_from_indexes = set(value)
 
 
 @dataclass
