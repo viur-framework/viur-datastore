@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+viur-datastore = {file = ".", editable = true}
+
+[dev-packages]
+build = "*"
+twine = "*"
+
+[requires]
+python_version = "3.11"
+
+[scripts]
+# pipenv run [...]
+tests = "python -m unittest tests"
+clean = "rm -rf dist build src/viur_datastore.egg-info"
+build = "python -m build"
+release = "python -m twine upload dist/viur_datastore-*.tar.gz"
+release_test = "python -m twine upload --repository testpypi dist/*"
