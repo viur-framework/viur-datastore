@@ -1,3 +1,4 @@
+import typing as t
 import unittest
 
 from viur import datastore
@@ -154,6 +155,57 @@ class BasicFunctionTest(BaseTestClass):
 		key = datastore.Key(testKindName, "bar", parent_key)
 		self.assertEqual(key.name, "bar")
 		self.assertEqual(key.parent, parent_key)
+
+
+class TestMulti(BaseTestClass):
+	"""Test get single and multi without local memcache"""
+
+	def setUp(self) -> None:
+		super().setUp()
+		for key in self._get_test_keys():
+			entity = datastore.Entity(key)
+			entity["foo"] = "bar"
+			datastore.Put(entity)
+
+	def _get_test_keys(self) -> t.Iterator[datastore.Key]:
+		for name in range(1_000_000, 1_000_025):
+			yield datastore.Key(testKindName, int(name))
+		for name in range(1_000_025, 1_000_050):
+			yield datastore.Key(testKindName, str(name))
+
+	def test_get_single(self):
+		"""
+		Ensure we can retrieve a multiple entities at once
+		"""
+		key = next(self._get_test_keys())
+		entity = datastore.Get(key)
+		self.assertIsInstance(entity, datastore.Entity)
+		self.assertEqual(key, entity.key)
+
+	def test_get_multi(self):
+		"""
+		Ensure we can retrieve a multiple entities at once
+		"""
+		keys = list(self._get_test_keys())
+		for i in range(3):
+			result = datastore.Get(keys)
+			self.assertIsInstance(result, list)
+			self.assertEqual(len(result), len(keys))
+			for src_key, entity in zip(keys, result):
+				self.assertIsInstance(entity, datastore.Entity)
+				self.assertEqual(src_key, entity.key)
+
+
+class TestMultiMemcache(TestMulti):
+	"""Test get single and multi WITH local memcache"""
+
+	def setUp(self) -> None:
+		super().setUp()
+		datastore.config["memcache_client"] = datastore.cache.LocalMemcache()
+
+	def tearDown(self) -> None:
+		super().tearDown()
+		datastore.config["memcache_client"] = None
 
 
 if __name__ == '__main__':
