@@ -3,16 +3,17 @@ The constants, global variables and container classes used in the datastore api
 """
 from __future__ import annotations
 
+import base64
+import datetime
+import enum
+import google.auth
+import google.auth
 import typing as t
-from base64 import urlsafe_b64decode, urlsafe_b64encode
+
 from contextvars import ContextVar
 from dataclasses import dataclass
-from datetime import date, datetime, time
-from enum import Enum
-from typing import Dict, List, Optional, Set, Tuple, Union
-
-import google.auth
-from google.cloud.datastore import _app_engine_key_pb2
+from google.cloud._helpers import _to_bytes, _ensure_tuple_or_list
+from google.cloud.datastore import _app_engine_key_pb2, Key as Datastore_key, Entity as Datastore_entity
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
@@ -20,7 +21,7 @@ if t.TYPE_CHECKING:
 # The property name pointing to an entities key in a query
 KEY_SPECIAL_PROPERTY = "__key__"
 # List of types that can be used in a datastore query
-DATASTORE_BASE_TYPES = Union[None, str, int, float, bool, datetime, date, time, 'Key']  #
+DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, datetime.date, datetime.time, 'Key']  #
 # Pointer to the current transaction this thread may be currently in
 currentTransaction = ContextVar("CurrentTransaction", default=None)
 # If set to a set for the current thread/request, we'll log all entities / kinds accessed
@@ -29,7 +30,7 @@ currentDbAccessLog: ContextVar[Optional[Set[Union[Key, str]]]] = ContextVar("Dat
 _, projectID = google.auth.default(scopes=["https://www.googleapis.com/auth/datastore"])
 
 
-class SortOrder(Enum):
+class SortOrder(enum.Enum):
     Ascending = 1  # Sort A->Z
     Descending = 2  # Sort Z->A
     InvertedAscending = 3  # Fetch Z->A, then flip the results (useful in pagination to go from a start cursor backwards)

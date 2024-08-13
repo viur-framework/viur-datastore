@@ -1,6 +1,4 @@
-from setuptools import setup, Extension
-from Cython.Build import cythonize
-from Cython.Distutils import build_ext
+from setuptools import setup
 
 setup(
 	name='viur-datastore',
