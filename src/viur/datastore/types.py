@@ -143,14 +143,12 @@ class Key(Datastore_key):
             :param strKey: The string key to parse
             :return: The new Key object constructed from the string key
         """
-        urlsafe = _to_bytes(urlsafe, encoding="ascii")
+        urlsafe = strKey.encode("ASCII")
         padding = b"=" * (-len(urlsafe) % 4)
         urlsafe += padding
         raw_bytes = base64.urlsafe_b64decode(urlsafe)
-
         reference = _app_engine_key_pb2.Reference()
         reference.ParseFromString(raw_bytes)
-
         resultKey = None
         for elem in reference.path.element:
             resultKey = Key(elem.type, elem.id or elem.name, parent=resultKey)

@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import Union, Tuple, List, Dict, Any, Callable, Set, Optional
-from google.cloud import datastore
-from datetime import datetime, date, time
-import binascii
-from dataclasses import dataclass
-from .types import Key, Entity, SortOrder, currentDbAccessLog
 from .overrides import key_from_protobuf, entity_from_protobuf
+from .types import Key, Entity, SortOrder, currentDbAccessLog
+from collections.abc import Iterable
+from dataclasses import dataclass
+from google.cloud import datastore
+import binascii
+import datetime
+import typing as t
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -15,19 +16,19 @@ __client__ = datastore.Client()
 
 # Consts
 KEY_SPECIAL_PROPERTY = "__key__"
-DATASTORE_BASE_TYPES = Union[None, str, int, float, bool, datetime, date, time, datastore.Key]
+DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, datetime.date, datetime.time, datastore.Key]
 
 
 @dataclass
 class QueryDefinition:
 	kind: str
-	filters: Dict[str, DATASTORE_BASE_TYPES]
-	orders: List[Tuple[str, SortOrder]]
-	distinct: Union[None, List[str]] = None
+	filters: t.Dict[str, DATASTORE_BASE_TYPES]
+	orders: t.List[t.Tuple[str, SortOrder]]
+	distinct: t.Union[None, List[str]] = None
 	limit: int = 30
-	startCursor: Union[None, str] = None
-	endCursor: Union[None, str] = None
-	currentCursor: Union[None, str] = None
+	startCursor: t.t.Union[None, str] = None
+	endCursor: t.t.Union[None, str] = None
+	currentCursor: t.t.Union[None, str] = None
 
 
 # Proxied Function / Classed
@@ -36,7 +37,8 @@ Get = __client__.get
 Delete = __client__.delete
 AllocateIDs = __client__.allocate_ids
 
-def Get(keys: Union[KeyClass, List[KeyClass]]) -> Union[List[Entity], Entity, None]:
+
+def Get(keys: t.Union[KeyClass, List[KeyClass]]) -> t.Union[List[Entity], Entity, None]:
     """
         Retrieves an entity (or a list thereof) from datastore.
         If only a single key has been given we'll return the entity or none in case the key has not been found,
@@ -44,47 +46,53 @@ def Get(keys: Union[KeyClass, List[KeyClass]]) -> Union[List[Entity], Entity, No
         :param keys: A datastore key (or a list thereof) to lookup
         :return: The entity (or None if it has not been found), or a list of entities.
     """
-    accessLog = currentDbAccessLog.get()
-    if isinstance(accessLog, set):
-        accessLog.update(set(keys))
+    # accessLog = currentDbAccessLog.get()
+
     if isinstance(keys, list):
+        # if isinstance(accessLog, set):
+        #     accessLog.update(set(keys))
+
         resList = list(__client__.get_multi(keys))
         resList.sort(key=lambda x: keys.index(x.key) if x else -1)
         return resList
-    else:
-        return __client__.get(keys)
+
+    # if isinstance(accessLog, set):
+    #     accessLog.add(keys)
+
+    return __client__.get(keys)
 
 
-def Put(entity: Union[Entity, List[Entity]]):
+def Put(entities: t.Union[Entity, List[Entity]]):
     """
         Save an entity in the Cloud Datastore.
         Also ensures that no string-key with an digit-only name can be used.
         :param entity: The entity to be saved to the datastore.
     """
-    accessLog = currentDbAccessLog.get()
-    if isinstance(accessLog, set):
-        accessLog.update(set(keys))
+    if isinstance(entities, Entity):
+        entities = entities,
 
-    if not isinstance(entity, list):
-        entity = [entity]
-    accessLog = currentDbAccessLog.get()
-    if isinstance(accessLog, set):
-        accessLog.update(set([x.key for x in entity if not x.key.is_partial]))
-    return __client__.put_multi(entities=entity)
+    # accessLog = currentDbAccessLog.get()
+    # if isinstance(accessLog, set):
+    #     accessLog.update(set(i.key for i in entities if not i.key.is_partial))
+
+    return __client__.put_multi(entities=entities)
 
 
-def Delete(keys: Union[Entity, List[Entity], KeyClass, List[KeyClass]]):
+def Delete(keys: t.Union[Entity, List[Entity], KeyClass, List[KeyClass]]):
     """
         Deletes the entities with the given key(s) from the datastore.
         :param keys: A Key (or a List of Keys) to delete
     """
-    accessLog = currentDbAccessLog.get()
-    if isinstance(accessLog, set):
-        accessLog.update(set(keys))
+    # accessLog = currentDbAccessLog.get()
     if isinstance(keys, list):
+        #if isinstance(accessLog, set):
+        #    accessLog.update(set(keys))
         return __client__.delete_multi(keys)
-    else:
-        return __client__.delete(keys)
+
+    # if isinstance(accessLog, set):
+    #     accessLog.remove(keys)
+
+    return __client__.delete(keys)
 
 def IsInTransaction() -> bool:
 	return __client__.current_transaction is not None
@@ -106,7 +114,7 @@ def acquireTransactionSuccessMarker() -> str:
 		txn.viurTxnMarkerSet = True
 	return marker
 
-def RunInTransaction(callee: Callable, *args, **kwargs) -> Any:
+def RunInTransaction(callee: t.Callable, *args, **kwargs) -> t.Any:
 	"""
 		Runs the function given in :param:callee inside a transaction.
 		Inside a transaction it's guaranteed that
@@ -128,7 +136,7 @@ def RunInTransaction(callee: Callable, *args, **kwargs) -> Any:
 		res = callee(*args, **kwargs)
 	return res
 
-def Count(kind: str = None, up_to= 2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> Union[Key, List[Key]]:
+def Count(kind: str = None, up_to= 2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> t.Union[Key, List[Key]]:
     if not kind:
         kind = queryDefinition.kind
 

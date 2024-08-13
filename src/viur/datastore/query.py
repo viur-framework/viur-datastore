@@ -92,10 +92,10 @@ class Query(object):
         self._lastEntry = None
         self._fulltextQueryString: Union[None, str] = None
         self.lastCursor = None
-        if not kind.startswith("viur") and not kwargs.get("_excludeFromAccessLog"):
-            accessLog = currentDbAccessLog.get()
-            if isinstance(accessLog, set):
-                accessLog.add(kind)
+        # if not kind.startswith("viur") and not kwargs.get("_excludeFromAccessLog"):
+        #     accessLog = currentDbAccessLog.get()
+        #     if isinstance(accessLog, set):
+        #         accessLog.add(kind)
 
     def setFilterHook(self, hook: Callable) -> Optional[Callable]:
         """
