@@ -35,7 +35,17 @@ class QueryDefinition:
 KeyClass = datastore.Key  # Expose the class also
 Get = __client__.get
 Delete = __client__.delete
-AllocateIDs = __client__.allocate_ids
+
+
+#def allocate_id(kind_name):
+def AllocateIDs(kind_name):  # FIXME: Rename into allocate_id() when re-integrating into viur-core, accept only str!
+    """
+    Allocates a new, free unique id for a given kind_name.
+    """
+    if isinstance(kind_name, Key):  # so ein Murks...
+        kind_name = kind_name.kind
+
+    return __client__.allocate_ids(Key(kind_name), 1)[0]
 
 
 def Get(keys: t.Union[KeyClass, List[KeyClass]]) -> t.Union[List[Entity], Entity, None]:
