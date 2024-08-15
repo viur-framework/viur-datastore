@@ -1,11 +1,9 @@
+import logging
 import sys
 import time
-import time as time_module
-from typing import Any, Dict, List, Union
-
-import logging
-from viur.datastore.config import conf
-from viur.datastore.types import Entity, Key
+import typing as t
+from .config import conf
+from .types import Entity, Key
 
 MEMCACHE_MAX_BATCH_SIZE = 30
 MEMCACHE_NAMESPACE = "viur-datastore"
@@ -39,10 +37,10 @@ __all__ = [
 ]
 
 
-def get(keys: Union[str, Key, List[str], List[Key]]) -> Dict[str, dict]:
+def get(keys: t.Union[str, Key, t.List[str], t.List[Key]]) -> t.Dict[str, dict]:
     """
         Reads data form the memcache.
-        :param Union[str, Key, List[str], List[Key]] keys: Unique identifier(s) for one or more entry(s).
+        :param t.Union[str, Key, t.List[str], t.List[Key]] keys: Unique identifier(s) for one or more entry(s).
         :return: A dict with the entry(s) that found in the memcache.
     """
     if not check_for_memcache():
@@ -60,11 +58,11 @@ def get(keys: Union[str, Key, List[str], List[Key]]) -> Dict[str, dict]:
     return res
 
 
-def put(data: Union[Entity, Dict[Key, Entity], List[Entity]]):
+def put(data: t.Union[Entity, t.Dict[Key, Entity], t.List[Entity]]):
     """
         Writes Data to the memcache.
 
-        :param Union[Entity, Dict[Key, Entity], List[Entity]] data: Data to write
+        :param t.Union[Entity, t.Dict[Key, Entity], t.List[Entity]] data: Data to write
     """
     if not check_for_memcache():
         return
@@ -87,11 +85,11 @@ def put(data: Union[Entity, Dict[Key, Entity], List[Entity]]):
         logging.error(f"""Failed to put data to the memcache with {e=}""")
 
 
-def delete(keys: Union[str, Key, List[str], List[Key]]) -> None:
+def delete(keys: t.Union[str, Key, t.List[str], t.List[Key]]) -> None:
     """
         Deletes an Entry form memcache.
 
-        :param Union[str, Key, List[str], List[Key]] keys: Unique identifier(s) for one or more entry(s).
+        :param t.Union[str, Key, t.List[str], t.List[Key]] keys: Unique identifier(s) for one or more entry(s).
     """
     if not check_for_memcache():
         return
@@ -118,7 +116,7 @@ def flush():
         logging.error(f"""Failed to flush the memcache with {e=}""")
 
 
-def get_size(obj: Any) -> int:
+def get_size(obj: t.Any) -> int:
     """
         Utility function that counts the size of an object in bytes.
     """
@@ -141,7 +139,7 @@ class LocalMemcache:
     def __init__(self):
         self._data = {}
 
-    def get_multi(self, keys: List[str], namespace: str = MEMCACHE_NAMESPACE):
+    def get_multi(self, keys: t.List[str], namespace: str = MEMCACHE_NAMESPACE):
         self._data.setdefault(namespace, {})
         res = {}
         for key in keys:
@@ -152,14 +150,14 @@ class LocalMemcache:
                     self._data[namespace].pop(key)
         return res
 
-    def set_multi(self, data: Dict[str, Any], namespace: str = MEMCACHE_NAMESPACE, time: int = MEMCACHE_TIMEOUT):
+    def set_multi(self, data: t.Dict[str, t.Any], namespace: str = MEMCACHE_NAMESPACE, time: int = MEMCACHE_TIMEOUT):
         self._data.setdefault(namespace, {})
         for key, value in data.items():
             self._data[namespace][key] = {}
             self._data[namespace][key]["__data__"] = value
-            self._data[namespace][key]["__lifetime__"] = {"timeout": time, "last_seen": time_module.time()}
+            self._data[namespace][key]["__lifetime__"] = {"timeout": time, "last_seen": time.time()}
 
-    def delete_multi(self, keys: List[str] = [], namespace: str = MEMCACHE_NAMESPACE):
+    def delete_multi(self, keys: t.List[str] = [], namespace: str = MEMCACHE_NAMESPACE):
         self._data.setdefault(namespace, {})
         for key in keys:
             if (data := self._data[namespace].get(key)) is not None:

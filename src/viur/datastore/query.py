@@ -1,25 +1,22 @@
 from __future__ import annotations
 
+import base64
+import copy
+import functools
 import logging
 import typing as t
-from base64 import urlsafe_b64decode, urlsafe_b64encode
-from copy import deepcopy
-from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-
-from viur.datastore.transport import Count, Get, runSingleFilter
-
-from viur.datastore.config import conf
-from viur.datastore.types import (
+from .config import conf
+from .transport import Count, Get, runSingleFilter
+from .types import (
+    currentDbAccessLog,
     DATASTORE_BASE_TYPES,
     Entity,
     KEY_SPECIAL_PROPERTY,
     QueryDefinition,
     SkelListRef,
     SortOrder,
-    currentDbAccessLog,
 )
-from viur.datastore.utils import IsInTransaction
+from .utils import IsInTransaction
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
@@ -66,7 +63,7 @@ class Query(object):
         for IN filters.
     """
 
-    def __init__(self, kind: str, srcSkelClass: Union["SkeletonInstance", None] = None, *args, **kwargs):
+    def __init__(self, kind: str, srcSkelClass: t.Union["SkeletonInstance", None] = None, *args, **kwargs):
         """
             Constructs a new Query.
             :param kind: The kind to run this query on. This may be later overridden to run on a different kind (like
@@ -77,27 +74,27 @@ class Query(object):
         super(Query, self).__init__()
         self.kind = kind
         self.srcSkel = srcSkelClass
-        self.queries: Union[None, QueryDefinition, List[QueryDefinition]] = QueryDefinition(kind, {}, [])
-        cbSignature = Union[None, Callable[[Query, str, Union[DATASTORE_BASE_TYPES, List[DATASTORE_BASE_TYPES]]], Union[
-            None, Tuple[str, Union[DATASTORE_BASE_TYPES, List[DATASTORE_BASE_TYPES]]]]]]
+        self.queries: t.Union[None, QueryDefinition, t.List[QueryDefinition]] = QueryDefinition(kind, {}, [])
+        cbSignature = t.Union[None, t.Callable[[Query, str, t.Union[DATASTORE_BASE_TYPES, t.List[DATASTORE_BASE_TYPES]]], t.Union[
+            None, t.Tuple[str, t.Union[DATASTORE_BASE_TYPES, t.List[DATASTORE_BASE_TYPES]]]]]]
         self._filterHook: cbSignature = None
         self._orderHook: cbSignature = None
         # Sometimes, the default merge functionality from MultiQuery is not sufficient
-        self._customMultiQueryMerge: Union[None, Callable[[Query, List[List[Entity]], int], List[Entity]]] = None
+        self._customMultiQueryMerge: t.Union[None, t.Callable[[Query, t.List[t.List[Entity]], int], t.List[Entity]]] = None
         # Some (Multi-)Queries need a different amount of results per subQuery than actually returned
-        self._calculateInternalMultiQueryLimit: Union[None, Callable[[Query, int], int]] = None
+        self._calculateInternalMultiQueryLimit: t.Union[None, t.Callable[[Query, int], int]] = None
         # Allow carrying custom data along with the query. Currently only used by spartialBone to record the guranteed correctnes
         self.customQueryInfo = {}
         self.origKind = kind
         self._lastEntry = None
-        self._fulltextQueryString: Union[None, str] = None
+        self._fulltextQueryString: t.Union[None, str] = None
         self.lastCursor = None
         # if not kind.startswith("viur") and not kwargs.get("_excludeFromAccessLog"):
         #     accessLog = currentDbAccessLog.get()
         #     if isinstance(accessLog, set):
         #         accessLog.add(kind)
 
-    def setFilterHook(self, hook: Callable) -> Optional[Callable]:
+    def setFilterHook(self, hook: t.Callable) -> t.Optional[t.Callable]:
         """
             Installs *hook* as a callback function for new filters.
 
@@ -113,7 +110,7 @@ class Query(object):
         self._filterHook = hook
         return old
 
-    def setOrderHook(self, hook: Callable) -> Callable:
+    def setOrderHook(self, hook: t.Callable) -> t.Callable:
         """
             Installs *hook* as a callback function for new orderings.
 
@@ -184,7 +181,7 @@ class Query(object):
             self.limit(int(filters["limit"]))
         return self
 
-    def filter(self, prop: str, value: Union[DATASTORE_BASE_TYPES, List[DATASTORE_BASE_TYPES]]) -> 'Query':
+    def filter(self, prop: str, value: t.Union[DATASTORE_BASE_TYPES, t.List[DATASTORE_BASE_TYPES]]) -> 'Query':
         """
             Adds a new constraint to this query.
 
@@ -223,17 +220,17 @@ class Query(object):
             origQuery = self.queries
             self.queries = []
             if op == "!=":
-                newFilter = deepcopy(origQuery)
+                newFilter = copy.deepcopy(origQuery)
                 newFilter.filters["%s <" % field] = value
                 self.queries.append(newFilter)
-                newFilter = deepcopy(origQuery)
+                newFilter = copy.deepcopy(origQuery)
                 newFilter.filters["%s >" % field] = value
                 self.queries.append(newFilter)
             else:  # IN filter
                 if not (isinstance(value, list) or isinstance(value, tuple)):
                     raise ValueError("Value must be list or tuple if using IN filter!")
                 for val in value:
-                    newFilter = deepcopy(origQuery)
+                    newFilter = copy.deepcopy(origQuery)
                     newFilter.filters["%s =" % field] = val
                     self.queries.append(newFilter)
         else:
@@ -263,7 +260,7 @@ class Query(object):
                         self.queries.orders = [(field, SortOrder.Ascending)] + (self.queries.orders or [])
         return self
 
-    def order(self, *orderings: Tuple[str, 'SortOrder']) -> 'Query':
+    def order(self, *orderings: t.Tuple[str, 'SortOrder']) -> 'Query':
         """
             Specify a query sorting.
 
@@ -285,7 +282,7 @@ class Query(object):
             from scratch.
 
             If an inequality filter exists in this Query it must be the first property
-            passed to ``order()``. Any number of sort orders may be used after the
+            passed to ``order()``. t.Any number of sort orders may be used after the
             inequality filter property. Without inequality filters, any number of
             filters with different orders may be specified.
 
@@ -341,7 +338,7 @@ class Query(object):
 
         return self
 
-    def setCursor(self, startCursor: str, endCursor: Optional[str] = None) -> 'Query':
+    def setCursor(self, startCursor: str, endCursor: t.Optional[str] = None) -> 'Query':
         """
             Sets the start and optionally end cursor for this query.
 
@@ -359,15 +356,15 @@ class Query(object):
             for query in self.queries:
                 assert isinstance(query, QueryDefinition)
                 if startCursor:
-                    query.startCursor = urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
+                    query.startCursor = base64.urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
                 if endCursor:
-                    query.endCursor = urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
+                    query.endCursor = base64.urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
         else:
             assert isinstance(self.queries, QueryDefinition)
             if startCursor:
-                self.queries.startCursor = urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
+                self.queries.startCursor = base64.urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
             if endCursor:
-                self.queries.endCursor = urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
+                self.queries.endCursor = base64.urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
         return self
 
     def limit(self, limit: int) -> 'Query':
@@ -386,7 +383,7 @@ class Query(object):
                 query.limit = limit
         return self
 
-    def distinctOn(self, keyList: List[str]) -> 'Query':
+    def distinctOn(self, keyList: t.List[str]) -> 'Query':
         """
             Ensure only entities with distinct values on the fields listed are returned.
             This will implicitly override your SortOrder as all fields listed in keyList have to be sorted first.
@@ -398,7 +395,7 @@ class Query(object):
                 query.distinct = keyList
         return self
 
-    def getCursor(self) -> Optional[str]:
+    def getCursor(self) -> t.Optional[str]:
         """
             Get a valid cursor from the last run of this query.
 
@@ -415,9 +412,9 @@ class Query(object):
             q = self.queries
         elif isinstance(self.queries, list):
             q = self.queries[0]
-        return urlsafe_b64encode(q.currentCursor).decode("ASCII") if q.currentCursor else None
+        return base64.urlsafe_b64encode(q.currentCursor).decode("ASCII") if q.currentCursor else None
 
-    def get_orders(self) -> List[Tuple[str, SortOrder]] | None:
+    def get_orders(self) -> t.List[t.Tuple[str, SortOrder]] | None:
         """
             Get the orders from this query.
 
@@ -442,7 +439,7 @@ class Query(object):
         """
         return self.kind
 
-    def _runSingleFilterQuery(self, query: QueryDefinition, limit: int) -> List[Entity]:
+    def _runSingleFilterQuery(self, query: QueryDefinition, limit: int) -> t.List[Entity]:
         """
             Internal helper function that runs a single query definition on the datastore and returns a list of
             entities found.
@@ -452,7 +449,7 @@ class Query(object):
         """
         return runSingleFilter(query, limit)
 
-    def _mergeMultiQueryResults(self, inputRes: List[List[Entity]]) -> List[Entity]:
+    def _mergeMultiQueryResults(self, inputRes: t.List[t.List[Entity]]) -> t.List[Entity]:
         """
             Merge the lists of entries into a single list; removing duplicates and restoring sort-order
             :param inputRes: Nested Lists of Entries returned by each individual query run
@@ -470,20 +467,20 @@ class Query(object):
         # Fixme: What about filters that mix different inequality filters - we'll now simply ignore any implicit sortorder
         return self._resortResult(res, {}, self.queries[0].orders)
 
-    def _resortResult(self, entities: List[Entity], filters: Dict[str, DATASTORE_BASE_TYPES],
-                      orders: List[Tuple[str, 'SortOrder']]) -> List[Entity]:
+    def _resortResult(self, entities: t.List[Entity], filters: t.Dict[str, DATASTORE_BASE_TYPES],
+                      orders: t.List[t.Tuple[str, 'SortOrder']]) -> t.List[Entity]:
         """
             Internal helper that takes a (deduplicated) list of entities that has been fetched from different internal
             queries (the datastore does not support IN filters itself, so we have to query each item in that array
             separately) and resorts the list so it matches the query again.
 
-            :param entities: List of entities to resort
+            :param entities: t.List of entities to resort
             :param filters: The filter used in the query (used to determine implicit sort order by an inequality filter)
             :param orders: The sort-orders to apply
             :return: The sorted list
         """
 
-        def getVal(src: Entity, fieldVars: Union[str, Tuple[str]], direction: SortOrder) -> Any:
+        def getVal(src: Entity, fieldVars: t.Union[str, t.Tuple[str]], direction: SortOrder) -> t.Any:
             # Descent into the target until we reach the property we're looking for
             if isinstance(fieldVars, tuple):
                 for fv in fieldVars:
@@ -524,14 +521,14 @@ class Query(object):
             # entities.sort(key=lambda x: x.key, reverse=direction == SortOrder.Descending)
             else:
                 try:
-                    entities.sort(key=partial(getVal, fieldVars=orderField, direction=direction),
+                    entities.sort(key=functools.partial(getVal, fieldVars=orderField, direction=direction),
                                   reverse=direction == SortOrder.Descending)
                 except TypeError:
                     # We hit some incomparable types
                     pass
         return entities
 
-    def _fixKind(self, resultList: List[Entity]) -> List[Entity]:
+    def _fixKind(self, resultList: t.List[Entity]) -> t.List[Entity]:
         """
             Jump to parentKind if necessary (used in relations)
         """
@@ -541,7 +538,7 @@ class Query(object):
             return list(Get(list(dict.fromkeys([x.key.parent for x in resultList]))))
         return resultList
 
-    def run(self, limit: int = -1) -> List[Entity]:
+    def run(self, limit: int = -1) -> t.List[Entity]:
         """
             Run this query.
 
@@ -680,7 +677,7 @@ class Query(object):
                 break
             self.queries.startCursor = self.queries.currentCursor
 
-    def getEntry(self) -> Union[None, Entity]:
+    def getEntry(self) -> t.Union[None, Entity]:
         """
             Returns only the first entity of the current query.
 
@@ -692,7 +689,7 @@ class Query(object):
         except (IndexError, TypeError):  # Empty result-set
             return None
 
-    def getSkel(self) -> Optional['SkeletonInstance']:
+    def getSkel(self) -> t.Optional['SkeletonInstance']:
         """
             Returns a matching :class:`server.db.skeleton.Skeleton` instance for the
             current query.
@@ -718,9 +715,9 @@ class Query(object):
         """
         res = Query(self.getKind(), self.srcSkel)
         res.kind = self.kind
-        res.queries = deepcopy(self.queries)
-        # res.filters = deepcopy(self.filters)
-        # res.orders = deepcopy(self.orders)
+        res.queries = copy.deepcopy(self.queries)
+        # res.filters = copy.deepcopy(self.filters)
+        # res.orders = copy.deepcopy(self.orders)
         # res._limit = self._limit
         res._filterHook = self._filterHook
         res._orderHook = self._orderHook

@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
 	name='viur-datastore',
-	version="1.3.13",
+	version="1.3.99",
 	author="Tobias Steinrücken, Stefan Kögl",
 	author_email="devs@viur.dev",
 	maintainer="Stefan Kögl",

@@ -1,27 +1,29 @@
-from viur.datastore.config import conf as config
-from viur.datastore.errors import *
-from viur.datastore import cache
-from viur.datastore.query import Query
-from viur.datastore.transport import AllocateIDs, Delete, Get, Put, RunInTransaction, Count
-from viur.datastore.types import (
+from . import cache
+from .config import conf as config
+from .errors import *
+from .query import Query
+from .transport import AllocateIDs, Delete, Get, Put, RunInTransaction, Count
+from .types import (
     currentDbAccessLog,
     DATASTORE_BASE_TYPES,
     Entity,
     KEY_SPECIAL_PROPERTY,
     Key,
-    SortOrder,
+    QueryDefinition,
     SkelListRef,
-    QueryDefinition)
-from viur.datastore.utils import (
-    fixUnindexableProperties,
-    normalizeKey,
-    keyHelper,
-    IsInTransaction,
-    GetOrInsert,
-    encodeKey,
+    SortOrder,
+)
+from .utils import (
     acquireTransactionSuccessMarker,
+    encodeKey,
+    endDataAccessLog,
+    fixUnindexableProperties,
+    GetOrInsert,
+    IsInTransaction,
+    keyHelper,
+    normalizeKey,
     startDataAccessLog,
-    endDataAccessLog)
+)
 
 import logging
 

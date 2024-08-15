@@ -1,8 +1,9 @@
-from viur.datastore.types import Entity, Key
+from .types import Entity, Key
 from google.cloud.datastore_v1.types import entity as entity_pb2
 from google.cloud.datastore.helpers import _get_value_from_value_pb, _get_meaning
 
-def key_from_protobuf(pb): # !!! 100% Copy, only use our Key Class
+
+def key_from_protobuf(pb): # !!! 100% Copy, only uses our Key Class
     """Factory method for creating a key based on a protobuf.
 
     The protobuf should be one returned from the Cloud Datastore

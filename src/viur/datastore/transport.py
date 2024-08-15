@@ -1,7 +1,6 @@
 from __future__ import annotations
 from .overrides import key_from_protobuf, entity_from_protobuf
-from .types import Key, Entity, SortOrder, currentDbAccessLog
-from collections.abc import Iterable
+from .types import Key, Entity, QueryDefinition, SortOrder, currentDbAccessLog
 from dataclasses import dataclass
 from google.cloud import datastore
 import binascii
@@ -17,19 +16,6 @@ __client__ = datastore.Client()
 # Consts
 KEY_SPECIAL_PROPERTY = "__key__"
 DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, datetime.date, datetime.time, datastore.Key]
-
-
-@dataclass
-class QueryDefinition:
-	kind: str
-	filters: t.Dict[str, DATASTORE_BASE_TYPES]
-	orders: t.List[t.Tuple[str, SortOrder]]
-	distinct: t.Union[None, List[str]] = None
-	limit: int = 30
-	startCursor: t.t.Union[None, str] = None
-	endCursor: t.t.Union[None, str] = None
-	currentCursor: t.t.Union[None, str] = None
-
 
 # Proxied Function / Classed
 KeyClass = datastore.Key  # Expose the class also
@@ -48,7 +34,7 @@ def AllocateIDs(kind_name):  # FIXME: Rename into allocate_id() when re-integrat
     return __client__.allocate_ids(Key(kind_name), 1)[0]
 
 
-def Get(keys: t.Union[KeyClass, List[KeyClass]]) -> t.Union[List[Entity], Entity, None]:
+def Get(keys: t.Union[KeyClass, t.List[KeyClass]]) -> t.Union[t.List[Entity], Entity, None]:
     """
         Retrieves an entity (or a list thereof) from datastore.
         If only a single key has been given we'll return the entity or none in case the key has not been found,
@@ -72,7 +58,7 @@ def Get(keys: t.Union[KeyClass, List[KeyClass]]) -> t.Union[List[Entity], Entity
     return __client__.get(keys)
 
 
-def Put(entities: t.Union[Entity, List[Entity]]):
+def Put(entities: t.Union[Entity, t.List[Entity]]):
     """
         Save an entity in the Cloud Datastore.
         Also ensures that no string-key with an digit-only name can be used.
@@ -88,10 +74,10 @@ def Put(entities: t.Union[Entity, List[Entity]]):
     return __client__.put_multi(entities=entities)
 
 
-def Delete(keys: t.Union[Entity, List[Entity], KeyClass, List[KeyClass]]):
+def Delete(keys: t.Union[Entity, t.List[Entity], KeyClass, t.List[KeyClass]]):
     """
         Deletes the entities with the given key(s) from the datastore.
-        :param keys: A Key (or a List of Keys) to delete
+        :param keys: A Key (or a t.List of Keys) to delete
     """
     # accessLog = currentDbAccessLog.get()
     if isinstance(keys, list):
@@ -146,7 +132,7 @@ def RunInTransaction(callee: t.Callable, *args, **kwargs) -> t.Any:
 		res = callee(*args, **kwargs)
 	return res
 
-def Count(kind: str = None, up_to= 2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> t.Union[Key, List[Key]]:
+def Count(kind: str = None, up_to= 2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> t.Union[Key, t.List[Key]]:
     if not kind:
         kind = queryDefinition.kind
 
@@ -166,7 +152,7 @@ def Count(kind: str = None, up_to= 2 ** 31 - 1, queryDefinition: QueryDefinition
     return list(result)[0][0].value
 
 
-def runSingleFilter(query: QueryDefinition, limit: int) -> List[Entity]:
+def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
     """
         Internal helper function that runs a single query definition on the datastore and returns a list of
         entities found.

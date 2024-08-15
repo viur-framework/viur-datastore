@@ -5,10 +5,8 @@ CANONICAL_ERROR_CODE_MAP.
 """
 import json
 import logging
-
 import requests
-
-from viur.datastore.config import conf
+from .config import conf
 
 
 class ViurDatastoreError(ValueError):

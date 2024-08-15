@@ -1,9 +1,7 @@
-from datetime import datetime
-from typing import List, Optional, Set, Tuple, Union
-
-from viur.datastore.transport import Get, Put, RunInTransaction
-
-from viur.datastore.types import Entity, Key, currentDbAccessLog, currentTransaction
+import datetime
+import typing as t
+from .transport import Get, Put, RunInTransaction
+from .types import Entity, Key, currentDbAccessLog, currentTransaction
 
 
 def fixUnindexableProperties(entry: Entity) -> Entity:
@@ -40,7 +38,7 @@ def fixUnindexableProperties(entry: Entity) -> Entity:
     return entry
 
 
-def normalizeKey(key: Union[None, Key]) -> Union[None, Key]:
+def normalizeKey(key: t.Union[None, Key]) -> t.Union[None, Key]:
     """
         Normalizes a datastore key (replacing _application with the current one)
 
@@ -56,8 +54,8 @@ def normalizeKey(key: Union[None, Key]) -> Union[None, Key]:
     return Key(key.kind, key.id_or_name, parent=parent)
 
 
-def keyHelper(inKey: Union[Key, str, int], targetKind: str,
-              additionalAllowedKinds: Union[List[str], Tuple[str]] = (),
+def keyHelper(inKey: t.Union[Key, str, int], targetKind: str,
+              additionalAllowedKinds: t.Union[t.List[str], t.Tuple[str]] = (),
               adjust_kind: bool = False) -> Key:
     if isinstance(inKey, Key):
         if inKey.kind != targetKind and inKey.kind not in additionalAllowedKinds:
@@ -142,32 +140,32 @@ def acquireTransactionSuccessMarker() -> str:
     marker = txn["key"]  # binascii.b2a_hex(txn["key"]).decode("ASCII")
     if not "viurTxnMarkerSet" in txn:
         e = Entity(Key("viur-transactionmarker", marker))
-        e["creationdate"] = datetime.utcnow()
+        e["creationdate"] = datetime.datetime.utcnow()
         Put(e)
         txn["viurTxnMarkerSet"] = True
     return marker
 
 
-def startDataAccessLog() -> Set[Union[Key, str]]:
+def startDataAccessLog() -> t.Set[t.Union[Key, str]]:
     """
         Clears our internal access log (which keeps track of which entries have been accessed in the current
         request). The old set of accessed entries is returned so that it can be restored with
         :func:`server.db.popAccessData` in case of nested caching. You must call popAccessData afterwards, otherwise
         we'll continue to log all entries accessed in subsequent request on the same thread!
-        :return: Set of old accessed entries
+        :return: t.Set of old accessed entries
     """
     old = currentDbAccessLog.get(set())
     currentDbAccessLog.set(set())
     return old
 
 
-def endDataAccessLog(outerAccessLog: Optional[Set[Union[Key, str]]] = None) -> Optional[Set[Union[Key, str]]]:
+def endDataAccessLog(outerAccessLog: t.Optional[t.Set[t.Union[Key, str]]] = None) -> t.Optional[t.Set[t.Union[Key, str]]]:
     """
         Retrieves the set of entries accessed so far. To clean up and restart the log, call :func:`viur.datastore.startAccessDataLog`.
         If you called :func:`server.db.startAccessDataLog` before, you can re-apply the old log using
         the outerAccessLog param. Otherwise, it will disable the access log.
         :param outerAccessLog: State of your log returned by :func:`server.db.startAccessDataLog`
-        :return: Set of entries accessed
+        :return: t.Set of entries accessed
     """
     res = currentDbAccessLog.get()
     if isinstance(outerAccessLog, set):
