@@ -1,7 +1,6 @@
 from __future__ import annotations
 from .overrides import key_from_protobuf, entity_from_protobuf
 from .types import Key, Entity, QueryDefinition, SortOrder, currentDbAccessLog
-from dataclasses import dataclass
 from google.cloud import datastore
 import binascii
 import datetime
@@ -12,10 +11,6 @@ datastore.helpers.key_from_protobuf = key_from_protobuf
 datastore.helpers.entity_from_protobuf = entity_from_protobuf
 
 __client__ = datastore.Client()
-
-# Consts
-KEY_SPECIAL_PROPERTY = "__key__"
-DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, datetime.date, datetime.time, datastore.Key]
 
 # Proxied Function / Classed
 KeyClass = datastore.Key  # Expose the class also
@@ -105,7 +100,7 @@ def acquireTransactionSuccessMarker() -> str:
 	marker = binascii.b2a_hex(txn.id).decode("ASCII")
 	if not "viurTxnMarkerSet" in dir(txn):
 		e = Entity(Key("viur-transactionmarker", marker))
-		e["creationdate"] = datetime.now()
+		e["creationdate"] = datetime.datetime.now()
 		Put(e)
 		txn.viurTxnMarkerSet = True
 	return marker
