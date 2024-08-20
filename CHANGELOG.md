@@ -10,6 +10,29 @@
 
 ### Remove
 
+
+## [1.3.14]
+
+### Add
+* feat: Add requirements to `setup.py` by @sveneberth in https://github.com/viur-framework/viur-datastore/pull/54
+* feat: Implement multi Get testcases by @sveneberth in https://github.com/viur-framework/viur-datastore/pull/52
+* feat: Add Pipfile for testing and releasing by @sveneberth in https://github.com/viur-framework/viur-datastore/pull/56
+
+### Change
+* Ensure exclude_from_indexes is a set by @ArneGudermann in https://github.com/viur-framework/viur-datastore/pull/44
+* Replace assert by  is_viur_datastore_request_ok in `transport.pyx` by @ArneGudermann in https://github.com/viur-framework/viur-datastore/pull/37
+
+### Fix
+* fix: Remove duplicate Keys in _fixKind by @ArneGudermann in https://github.com/viur-framework/viur-datastore/pull/47
+* fix: Add case if subKey is not None by @sveneberth in https://github.com/viur-framework/viur-datastore/pull/50
+* fix: Refuse `Get` of incomplete keys by @sveneberth in https://github.com/viur-framework/viur-datastore/pull/53
+* fix: Remove indent from changes from #44 by @sveneberth in https://github.com/viur-framework/viur-datastore/pull/55
+
+### Refactor
+* refactor: Add .editorconfig and reformat. by @ArneGudermann in https://github.com/viur-framework/viur-datastore/pull/45
+* refactor: Fix some type hints by @sveneberth in https://github.com/viur-framework/viur-datastore/pull/49
+
+
 ## [1.3.13]
 
 ### Add
@@ -318,3 +341,25 @@ Thx to @phorward for the contribution
 ## [0.1]
 - Initial public release
 
+
+
+
+[develop]: https://github.com/viur-framework/viur-datastore/compare/1.3.14...master
+[1.3.14]: https://github.com/viur-framework/viur-datastore/compare/v1.3.13...v1.3.14
+[1.3.13]: https://github.com/viur-framework/viur-datastore/compare/v1.3.12...v1.3.13
+[1.3.12]: https://github.com/viur-framework/viur-datastore/compare/v1.3.11...v1.3.12
+[1.3.11]: https://github.com/viur-framework/viur-datastore/compare/v1.3.10...v1.3.11
+[1.3.10]: https://github.com/viur-framework/viur-datastore/compare/v1.3.9...v1.3.10
+[1.3.9]: https://github.com/viur-framework/viur-datastore/compare/v1.3.8...v1.3.9
+[1.3.8]: https://github.com/viur-framework/viur-datastore/compare/v1.3.7...v1.3.8
+[1.3.7]: https://github.com/viur-framework/viur-datastore/compare/v1.3.6...v1.3.7
+[1.3.6]: https://github.com/viur-framework/viur-datastore/compare/v1.3.5...v1.3.6
+[1.3.5]: https://github.com/viur-framework/viur-datastore/compare/v1.3.4...v1.3.5
+[1.3.4]: https://github.com/viur-framework/viur-datastore/compare/v1.3.3...v1.3.4
+[1.3.3]: https://github.com/viur-framework/viur-datastore/compare/v1.3.2...v1.3.3
+[1.3.2]: https://github.com/viur-framework/viur-datastore/compare/v1.3.1...v1.3.2
+[1.3.1]: https://github.com/viur-framework/viur-datastore/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/viur-framework/viur-datastore/compare/v1.2.2...v1.3.0
+[1.2.2]: https://github.com/viur-framework/viur-datastore/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/viur-framework/viur-datastore/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/viur-framework/viur-datastore/compare/v1.1...v1.2.0
