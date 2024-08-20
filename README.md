@@ -1,6 +1,19 @@
-# The Datastore wrapper for ViUR-Core
+<div align="center">
+    <img src="https://github.com/viur-framework/viur-artwork/raw/main/icons/icon-datastore.svg" height="196" alt="A hexagonal logo of the viur-datastore" title="viur-datastore">
+    <h1>viur-datastore</h1>
+    <a href="https://pypi.org/project/viur-datastore/">
+        <img alt="Badge showing current PyPI version" title="PyPI" src="https://img.shields.io/pypi/v/viur-datastore">
+    </a>
+    <a href="https://github.com/viur-framework/viur-datastore/blob/main/LICENSE">
+        <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="Badge displaying the license" title="License badge">
+    </a>
+    <br>
+    The Datastore wrapper for <a href="https://github.com/viur-framework/viur-core">ViUR-Core</a>
+</div>
 
-This repository contains the datastore wrapper for the ViUR framework.
+## About
+
+This repository contains the datastore wrapper for the [ViUR framework](https://www.viur.dev).
 We build our own wrapper around it's REST-API as the original wrapper has significant CPU overhead.
 Using a fast JSON-Parser (simdjson) and Cython, we can go directly from the received JSON-encoded protocol-wrapper
 representation to the final python objects, without converting that JSON into an intermediate python object
