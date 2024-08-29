@@ -70,6 +70,5 @@ __all__ = [
     "UnauthenticatedError",
     "UnavailableError",
     "NoMutationResultsError",
-    "is_viur_datastore_request_ok",
     "cache",
 ]

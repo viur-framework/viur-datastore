@@ -165,25 +165,3 @@ CANONICAL_ERROR_CODE_MAP = {
     "UNAUTHENTICATED": UnauthenticatedError,
     "UNAVAILABLE": UnavailableError
 }
-
-
-def is_viur_datastore_request_ok(resp: requests.Response) -> bool:
-    """This small helper function raise an appropriate exception class for errors happened talking to google datastore.
-
-    It returns True if everything is ok, otherwise raises.
-
-    Also it pretty prints the message for selected errors on stderr/stdout. Look at viur.datastore.config.conf
-    verbose_error_codes field.
-    """
-    if resp.status_code != 200:
-        try:
-            error_data = resp.json()["error"]
-            if error_data["status"] in conf["verbose_error_codes"]:
-                logging.error(error_data)
-            raise CANONICAL_ERROR_CODE_MAP.get(error_data["status"], ViurDatastoreError)(error_data["message"])
-        except ViurDatastoreError:
-            raise
-        except Exception:
-            logging.error(f"{resp.url} failed with Code: {resp.status_code}\nAnd Content:\n{resp.content}")
-
-    return True
